@@ -28,6 +28,65 @@ function checkAILimit(userId) {
   return true;
 }
 
+// Webhook needs raw body — must be registered before express.json()
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET || '');
+  } catch (err) {
+    console.error('Webhook signature failed', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  const upsertSub = async (stripeObj) => {
+    const customerId = stripeObj.customer;
+    const customer = await stripe.customers.retrieve(customerId);
+    const userId = customer.metadata?.userId;
+    if (!userId) return;
+
+    const periodEnd = stripeObj.current_period_end
+      ? new Date(stripeObj.current_period_end * 1000)
+      : null;
+
+    const existing = await getSubscription(userId);
+    if (existing) {
+      await db.update(subscription)
+        .set({
+          stripeCustomerId: customerId,
+          stripeSubscriptionId: stripeObj.id,
+          status: stripeObj.status,
+          currentPeriodEnd: periodEnd,
+        })
+        .where(eq(subscription.userId, userId));
+    } else {
+      await db.insert(subscription).values({
+        id: randomUUID(),
+        userId,
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: stripeObj.id,
+        status: stripeObj.status,
+        currentPeriodEnd: periodEnd,
+      });
+    }
+  };
+
+  try {
+    switch (event.type) {
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted':
+        await upsertSub(event.data.object);
+        break;
+    }
+  } catch (err) {
+    console.error('Webhook handler error', err);
+    return res.status(500).end();
+  }
+
+  res.json({ received: true });
+});
+
 app.use(express.json());
 
 // Better Auth handler — must come before static/other routes
@@ -114,65 +173,6 @@ app.post('/api/stripe/portal', async (req, res) => {
     console.error('POST /api/stripe/portal', err);
     res.status(500).json({ error: 'Server error' });
   }
-});
-
-// ── Stripe webhook ────────────────────────────────────────────────────────────
-app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  let event;
-  try {
-    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET || '');
-  } catch (err) {
-    console.error('Webhook signature failed', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
-  const upsertSub = async (stripeObj) => {
-    const customerId = stripeObj.customer;
-    const customer = await stripe.customers.retrieve(customerId);
-    const userId = customer.metadata?.userId;
-    if (!userId) return;
-
-    const periodEnd = stripeObj.current_period_end
-      ? new Date(stripeObj.current_period_end * 1000)
-      : null;
-
-    const existing = await getSubscription(userId);
-    if (existing) {
-      await db.update(subscription)
-        .set({
-          stripeCustomerId: customerId,
-          stripeSubscriptionId: stripeObj.id,
-          status: stripeObj.status,
-          currentPeriodEnd: periodEnd,
-        })
-        .where(eq(subscription.userId, userId));
-    } else {
-      await db.insert(subscription).values({
-        id: randomUUID(),
-        userId,
-        stripeCustomerId: customerId,
-        stripeSubscriptionId: stripeObj.id,
-        status: stripeObj.status,
-        currentPeriodEnd: periodEnd,
-      });
-    }
-  };
-
-  try {
-    switch (event.type) {
-      case 'customer.subscription.created':
-      case 'customer.subscription.updated':
-      case 'customer.subscription.deleted':
-        await upsertSub(event.data.object);
-        break;
-    }
-  } catch (err) {
-    console.error('Webhook handler error', err);
-    return res.status(500).end();
-  }
-
-  res.json({ received: true });
 });
 
 // ── Subscription gate middleware ──────────────────────────────────────────────
