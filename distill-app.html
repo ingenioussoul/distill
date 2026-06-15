@@ -579,6 +579,35 @@ const A={
     const phase=this.s.buildStarted?this.phaseHTML('Repeat',false):this.phaseHTML('Build',false);
     if(this.s.buildStarted){
       const label=this.s.buildTargetLabel;
+      const isStack=label==='Ingenious Stack';
+      const pd=this.s.pressureData||{};
+      const allStack=(pd.stack||['Express 5','Better Auth','Drizzle · Neon','Railway']);
+      const knownBase=['express 5','better auth','drizzle','neon','railway','vite','react','stripe'];
+      const newDeps=allStack.filter(s=>!knownBase.some(k=>s.toLowerCase().includes(k)));
+      const terminalLines=isStack
+        ?[
+          {c:'var(--code-comment)',t:'# Stack cloned — foundation ready'},
+          {c:'var(--code-text)',t:'cd my-app && npm install'},
+          {c:null,h:true},
+          {c:'var(--code-comment)',t:'# Wiring what\'s new'},
+          ...newDeps.map(d=>({c:'var(--code-val)',t:`✓ ${d.toLowerCase()}`})),
+          {c:'var(--code-val)',t:`✓ ${at.name.toLowerCase()} · schema + routes`},
+          {c:null,h:true},
+          {c:'var(--code-val)',t:'✓ Built on what you own.'},
+        ]
+        :[
+          {c:'var(--code-comment)',t:'# Scaffolding from the brief'},
+          {c:'var(--code-text)',t:`build "${at.name.toLowerCase()}"`},
+          {c:null,h:true},
+          {c:'var(--code-comment)',t:'# Wiring the stack'},
+          ...allStack.map(s=>({c:'var(--code-val)',t:`✓ ${s.toLowerCase()}`})),
+          {c:null,h:true},
+          {c:'var(--code-val)',t:'✓ Built for you, not handed to you.'},
+        ];
+      const lines=terminalLines.map((l,i)=>l.h
+        ?`<div style="height:13px"></div>`
+        :`<div style="color:${l.c};animation:drawUp .3s ease both ${i*0.15}s">${l.t}</div>`
+      ).join('');
       return`<div style="height:100%;display:flex;flex-direction:column;background:var(--bg);animation:screenIn .4s ease both">
   <div style="padding:54px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
     <button onclick="A.set({screen:'themes'})" style="border:none;background:none;font-family:var(--font-mono);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-light);padding:0">←</button>
@@ -586,21 +615,12 @@ const A={
     <div style="width:18px"></div>
   </div>
   <div style="flex:1;overflow:auto;padding:24px 28px 36px">
-    <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-light)">Candidate → buildable</div>
+    <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-light)">Brief copied to clipboard</div>
     <div style="font-family:var(--font-display);font-size:28px;line-height:1.08;color:var(--ink);margin:6px 0 24px">${at.name}<span style="color:var(--accent)">.</span></div>
     <div style="animation:screenIn .4s ease both">
-      <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-light);margin-bottom:12px">${label} is building it</div>
+      <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-light);margin-bottom:12px">${label} · paste and build</div>
       <div style="background:var(--code-bg);color:var(--code-text);border-left:3px solid var(--accent);padding:20px;font-family:var(--font-mono);font-size:11.5px;line-height:1.75;display:flex;flex-direction:column">
-        <div style="color:var(--code-comment);animation:drawUp .3s ease both"># Scaffolding from the brief</div>
-        <div style="animation:drawUp .3s ease both .15s">distill build <span style="color:var(--code-key)">--candidate</span></div>
-        <div style="height:13px"></div>
-        <div style="color:var(--code-comment);animation:drawUp .3s ease both .35s"># Wiring the stack</div>
-        <div style="animation:drawUp .3s ease both .55s"><span style="color:var(--code-val)">✓</span> express 5 · routes</div>
-        <div style="animation:drawUp .3s ease both .75s"><span style="color:var(--code-val)">✓</span> better-auth · sessions</div>
-        <div style="animation:drawUp .3s ease both .95s"><span style="color:var(--code-val)">✓</span> drizzle + neon · schema</div>
-        <div style="animation:drawUp .3s ease both 1.15s"><span style="color:var(--code-val)">✓</span> r2 · object storage</div>
-        <div style="height:13px"></div>
-        <div style="color:var(--code-val);animation:drawUp .4s ease both 1.45s">✓ Built for you, not handed to you.</div>
+        ${lines}
       </div>
       <div style="font-size:13px;line-height:1.6;color:var(--ink-mid);margin-top:20px;text-align:center">What you ship changes what you notice next.</div>
       <button onclick="A.reset()" style="width:100%;margin-top:18px;border:1px solid var(--border);background:transparent;color:var(--ink);font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;padding:15px">Repeat the loop ↻</button>
