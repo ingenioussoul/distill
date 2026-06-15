@@ -380,13 +380,11 @@ const A={
   },
 
   screenInsight(){
-    const chips=[
-      {text:'Another form rejected me with no reason',themeId:'t1'},
-      {text:'A receipt I will never find again',themeId:'t2'},
-      {text:'A spinner with no end in sight',themeId:'t3'},
-    ].map(c=>{
-      const active=this.s.draftInsight===c.text;
-      return`<button onclick="A.set({draftInsight:'${c.text.replace(/'/g,"\\'")}',draftThemeId:'${c.themeId}'})" style="text-align:left;border:1px solid ${active?'var(--accent)':'rgba(247,244,238,.2)'};background:${active?'rgba(196,80,10,0.12)':'transparent'};color:${active?'var(--accent)':'rgba(247,244,238,.72)'};font-family:var(--font-sans);font-size:13px;line-height:1.4;padding:13px 15px;transition:border-color .2s,background .2s;width:100%">${c.text}</button>`;
+    const themes=this.s.themes||[];
+    const signals=themes.filter(t=>t.count>=2).slice(0,3);
+    const chips=signals.map(t=>{
+      const active=this.s.draftInsight===t.name;
+      return`<button onclick="A.set({draftInsight:'${t.name.replace(/'/g,"\\'")}',draftThemeId:'${t.id}'})" style="text-align:left;border:1px solid ${active?'var(--accent)':'rgba(247,244,238,.2)'};background:${active?'rgba(196,80,10,0.12)':'transparent'};color:${active?'var(--accent)':'rgba(247,244,238,.72)'};font-family:var(--font-sans);font-size:13px;line-height:1.4;padding:13px 15px;transition:border-color .2s,background .2s;width:100%">${t.name}</button>`;
     }).join('');
     return`<div style="height:100%;display:flex;flex-direction:column;background:var(--bg-ink);animation:screenIn .35s ease both">
   <div style="padding:54px 22px 12px;display:flex;align-items:center;justify-content:space-between;background:var(--bg-ink)">
@@ -402,8 +400,7 @@ const A={
     </div>
     <div style="font-family:var(--font-display);font-size:27px;line-height:1.12;color:var(--paper)">What caught your <span style="font-style:italic;color:var(--accent)">eye?</span></div>
     <input id="insight-input" value="${(this.s.draftInsight||'').replace(/"/g,'&quot;')}" placeholder="Say it in one line…" style="width:100%;margin-top:18px;border:none;border-bottom:1.5px solid rgba(247,244,238,.55);background:transparent;font-family:var(--font-sans);font-size:16px;color:var(--paper);padding:8px 0;outline:none">
-    <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(247,244,238,.5);margin:22px 0 12px">Or pick the signal</div>
-    <div style="display:flex;flex-direction:column;gap:9px">${chips}</div>
+    ${chips?`<div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(247,244,238,.5);margin:22px 0 12px">Seen this before?</div><div style="display:flex;flex-direction:column;gap:9px">${chips}</div>`:''}
   </div>
   <div style="padding:14px 28px 36px;border-top:1px solid rgba(247,244,238,.12);background:var(--bg-ink)">
     <button onclick="A.save()" style="width:100%;border:none;background:var(--accent);color:var(--paper);font-family:var(--font-mono);font-size:12px;letter-spacing:0.14em;text-transform:uppercase;padding:17px;display:flex;align-items:center;justify-content:center;gap:10px">Save capture <span style="font-family:var(--font-sans)">→</span></button>
