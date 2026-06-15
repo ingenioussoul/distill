@@ -654,10 +654,38 @@ const M={
     if(think)think.addEventListener('click',()=>this.set({phase:'patterns'}));
     const btn=document.getElementById('mini-again');
     if(btn)btn.addEventListener('click',()=>this.set({done:false,mode:'camera',voiceState:'idle',voiceText:'',capturedLine:'',via:''}));
+  },
+
+  // Auto-cycle: camera(3s) → captured(3s) → patterns(4s) → brief(4s) → repeat
+  _autoSteps:[
+    ()=>M.set({phase:'capture',done:false,mode:'camera',voiceState:'idle',voiceText:'',capturedLine:'',via:''}),
+    ()=>M.set({done:true,capturedLine:'A receipt I will never find again',via:'photo'}),
+    ()=>M.set({phase:'patterns'}),
+    ()=>M.set({phase:'brief'}),
+  ],
+  _autoIdx:0,
+  _autoT:null,
+  _autoPaused:false,
+  startAuto(){
+    const delays=[3200,3000,4000,4200];
+    const next=()=>{
+      if(this._autoPaused)return;
+      this._autoIdx=(this._autoIdx+1)%this._autoSteps.length;
+      this._autoSteps[this._autoIdx]();
+      this._autoT=setTimeout(next,delays[this._autoIdx]);
+    };
+    this._autoT=setTimeout(next,delays[0]);
+    // Pause on hover/touch
+    const el=document.getElementById('mini-app');
+    if(el){
+      el.addEventListener('pointerenter',()=>{this._autoPaused=true;clearTimeout(this._autoT);});
+      el.addEventListener('pointerleave',()=>{this._autoPaused=false;this._autoT=setTimeout(next,2000);});
+    }
   }
 };
 
 M.render();
+M.startAuto();
 </script>
 </body>
 </html>
