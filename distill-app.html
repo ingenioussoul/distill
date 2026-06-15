@@ -352,6 +352,42 @@ const A={
 </div>`;
   },
 
+  screenOnboarding(){
+    return`<div style="height:100%;display:flex;flex-direction:column;background:var(--bg-ink);animation:screenIn .5s ease both">
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:48px 36px 36px">
+    <div style="font-family:var(--font-display);font-size:38px;line-height:1;color:var(--paper);margin-bottom:6px">Distill<span style="color:var(--accent)">.</span></div>
+    <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(247,244,238,.35);margin-bottom:48px">An Ingenious Soul product</div>
+    <div style="font-family:var(--font-display);font-size:20px;line-height:1.35;color:var(--paper);margin-bottom:48px">Every friction you feel<br>is a product you haven't<br><span style="font-style:italic;color:var(--accent)">built yet.</span></div>
+    <div style="display:flex;flex-direction:column;gap:22px">
+      <div style="display:flex;gap:16px;align-items:flex-start">
+        <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--accent);flex-shrink:0;padding-top:2px">SEE</div>
+        <div style="font-size:13px;line-height:1.5;color:rgba(247,244,238,.65)">Catch the friction the moment you feel it — photo, voice, or one line.</div>
+      </div>
+      <div style="display:flex;gap:16px;align-items:flex-start">
+        <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(247,244,238,.35);flex-shrink:0;padding-top:2px">THINK</div>
+        <div style="font-size:13px;line-height:1.5;color:rgba(247,244,238,.65)">Distill watches the feed and finds what keeps coming back.</div>
+      </div>
+      <div style="display:flex;gap:16px;align-items:flex-start">
+        <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(247,244,238,.35);flex-shrink:0;padding-top:2px">BUILD</div>
+        <div style="font-size:13px;line-height:1.5;color:rgba(247,244,238,.65)">When a pattern recurs enough, it graduates into a brief ready to build.</div>
+      </div>
+      <div style="display:flex;gap:16px;align-items:flex-start">
+        <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(247,244,238,.35);flex-shrink:0;padding-top:2px">REPEAT</div>
+        <div style="font-size:13px;line-height:1.5;color:rgba(247,244,238,.65)">What you ship changes what you notice next.</div>
+      </div>
+    </div>
+  </div>
+  <div style="padding:0 36px 52px">
+    <button onclick="A.finishOnboarding()" style="width:100%;border:none;background:var(--accent);color:var(--paper);font-family:var(--font-mono);font-size:12px;letter-spacing:0.14em;text-transform:uppercase;padding:18px;display:flex;align-items:center;justify-content:center;gap:10px">Start noticing <span style="font-family:var(--font-sans)">→</span></button>
+  </div>
+</div>`;
+  },
+
+  finishOnboarding(){
+    localStorage.setItem('distill_onboarded','1');
+    this.set({screen:'feed'});
+  },
+
   screenFeed(){
     const list=[...this.s.captures].sort((a,b)=>b.order-a.order);
     const rows=list.map((c,i)=>`
@@ -777,7 +813,7 @@ const A={
     if(!root)return;
     const screen=this.s.screen;
     let html='';
-    if(screen==='onboarding') html=this.screenFeed();
+    if(screen==='onboarding') html=this.screenOnboarding();
     else if(screen==='feed') html=this.screenFeed();
     else if(screen==='capture') html=this.screenCapture();
     else if(screen==='captureInsight') html=this.screenInsight();
@@ -937,7 +973,8 @@ const Auth = {
     if(sd){
       this.session = sd;
       await Promise.all([A.loadCaptures(), A.loadHeldBriefs()]);
-      A.render();
+      if(!localStorage.getItem('distill_onboarded')) A.set({screen:'onboarding'});
+      else A.render();
     } else {
       // Check if this is a magic link callback (token in URL)
       const params = new URLSearchParams(window.location.search);
