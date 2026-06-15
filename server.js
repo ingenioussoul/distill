@@ -179,11 +179,16 @@ app.post('/api/themes/pressure', async (req, res) => {
 Their captures:
 ${captureList}
 
-Write a sharp pressure test for this as a potential product. Return ONLY valid JSON:
+Write a sharp pressure test for this as a potential product. Also suggest the right tech stack — pick from the builder's default stack where it fits, and add specific tools where the default doesn't cover it.
+
+Builder's default stack: Express 5, Better Auth, Drizzle + Neon, Railway, Vite, React
+
+Return ONLY valid JSON:
 {
   "forWho": "One sentence — who feels this friction acutely (be specific, not generic)",
   "smallestVersion": "One sentence — the single smallest thing that removes this friction and nothing else",
-  "frictionVerdict": "One sentence — why this friction is real and worth solving (cite the pattern)"
+  "frictionVerdict": "One sentence — why this friction is real and worth solving (cite the pattern)",
+  "stack": ["array of 3-5 tech names — use default stack items where they fit, add new ones where the default lacks something specific for this idea"]
 }`,
       }],
     });

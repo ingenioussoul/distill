@@ -201,6 +201,35 @@ const A={
     }catch(e){}
   },
 
+  _knownStack:['express 5','better auth','drizzle','neon','railway','vite','react','drizzle + neon','drizzle · neon'],
+
+  _stackTags(at){
+    const pd=this.s.pressureData;
+    const tags=pd&&pd.stack&&pd.stack.length?pd.stack:['Express 5','Better Auth','Drizzle · Neon','Railway'];
+    return tags.map(s=>{
+      const isNew=!this._knownStack.some(k=>s.toLowerCase().includes(k)||k.includes(s.toLowerCase()));
+      return isNew
+        ?`<span style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.06em;color:#E8A87C;border:1px solid rgba(232,168,124,0.5);padding:5px 9px" title="New suggestion">${s}</span>`
+        :`<span style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.06em;color:var(--ink-mid);border:1px solid var(--border);padding:5px 9px">${s}</span>`;
+    }).join('');
+  },
+
+  async copyBrief(target){
+    const at=this.activeTheme();
+    const pd=this.s.pressureData||{};
+    const stack=(pd.stack||['Express 5','Better Auth','Drizzle · Neon','Railway']).join(' · ');
+    const prompt=target==='claude'
+      ?`Build this: ${at.name}\n\nThe friction: ${at.blurb}\nWho it's for: ${pd.forWho||''}\nSmallest version: ${pd.smallestVersion||''}\nStack: ${stack}\n\nStart with the schema and API routes. Keep it to the smallest version — nothing extra.`
+      :`Scaffold this: ${at.name}\n\nFriction: ${at.blurb}\nFor: ${pd.forWho||''}\nMVP: ${pd.smallestVersion||''}\nStack: ${stack}`;
+    try{
+      await navigator.clipboard.writeText(prompt);
+      this.set({buildStarted:true,buildTargetLabel:target==='claude'?'Claude Code':'Ingenious Stack'});
+      this.toast('Brief copied to clipboard');
+    }catch(e){
+      this.set({buildStarted:true,buildTargetLabel:target==='claude'?'Claude Code':'Ingenious Stack'});
+    }
+  },
+
   async pressureTest(){
     const at=this.activeTheme();
     if(!at.name)return;
@@ -595,13 +624,13 @@ const A={
       <div style="padding:15px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
         <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent)">The stack</div>
         <div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:10px">
-          ${['Express 5','Better Auth','Drizzle · Neon','R2 storage'].map(s=>`<span style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.06em;color:var(--ink-mid);border:1px solid var(--border);padding:5px 9px">${s}</span>`).join('')}
+          ${this._stackTags(at)}
         </div>
       </div>
     </div>
     <div style="margin-top:24px;display:flex;flex-direction:column;gap:10px">
-      <button onclick="A.set({buildStarted:true,buildTargetLabel:'Claude Code'})" style="width:100%;border:none;background:var(--accent);color:var(--paper);font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;padding:16px;display:flex;align-items:center;justify-content:center;gap:9px">Hand to Claude Code <span style="font-family:var(--font-sans)">→</span></button>
-      <button onclick="A.set({buildStarted:true,buildTargetLabel:'Ingenious Stack'})" style="width:100%;border:1px solid var(--accent);background:transparent;color:var(--accent);font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;padding:15px;display:flex;align-items:center;justify-content:center;gap:9px">Scaffold on Ingenious Stack <span style="font-family:var(--font-sans)">→</span></button>
+      <button onclick="A.copyBrief('claude')" style="width:100%;border:none;background:var(--accent);color:var(--paper);font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;padding:16px;display:flex;align-items:center;justify-content:center;gap:9px">Hand to Claude Code <span style="font-family:var(--font-sans)">→</span></button>
+      <button onclick="A.copyBrief('stack')" style="width:100%;border:1px solid var(--accent);background:transparent;color:var(--accent);font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;padding:15px;display:flex;align-items:center;justify-content:center;gap:9px">Scaffold on Ingenious Stack <span style="font-family:var(--font-sans)">→</span></button>
     </div>
   </div>
 </div>`;
