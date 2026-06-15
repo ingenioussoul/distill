@@ -618,7 +618,10 @@ const A={
     <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-light)">Brief copied to clipboard</div>
     <div style="font-family:var(--font-display);font-size:28px;line-height:1.08;color:var(--ink);margin:6px 0 24px">${at.name}<span style="color:var(--accent)">.</span></div>
     <div style="animation:screenIn .4s ease both">
-      <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-light);margin-bottom:12px">${label} · paste and build</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-light)">${label} · paste and build</div>
+        <button onclick="A.copyBrief('${isStack?'stack':'claude'}')" style="border:none;background:none;font-family:var(--font-mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--accent);padding:0">Copy ↗</button>
+      </div>
       <div style="background:var(--code-bg);color:var(--code-text);border-left:3px solid var(--accent);padding:20px;font-family:var(--font-mono);font-size:11.5px;line-height:1.75;display:flex;flex-direction:column">
         ${lines}
       </div>
