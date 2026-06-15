@@ -4,8 +4,8 @@ const path = require('path');
 const { toNodeHandler } = require('better-auth/node');
 const { auth } = require('./auth');
 const { db } = require('./db/index');
-const { capture } = require('./db/schema');
-const { eq, desc } = require('drizzle-orm');
+const { capture, brief } = require('./db/schema');
+const { eq, desc, inArray } = require('drizzle-orm');
 const { randomUUID } = require('crypto');
 const Anthropic = require('@anthropic-ai/sdk');
 
@@ -151,6 +151,79 @@ The captures array should contain the 1-based index numbers of captures that bel
     res.json({ themes });
   } catch (err) {
     console.error('POST /api/themes/analyze', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Kill theme — delete all its captures
+app.post('/api/themes/kill', async (req, res) => {
+  try {
+    const session = await auth.api.getSession({ headers: req.headers });
+    if (!session) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { captureIds } = req.body;
+    if (!captureIds || !captureIds.length) return res.status(400).json({ error: 'No captures' });
+
+    await db.delete(capture).where(inArray(capture.id, captureIds));
+    res.status(204).end();
+  } catch (err) {
+    console.error('POST /api/themes/kill', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Briefs — hold an idea for later
+app.get('/api/briefs', async (req, res) => {
+  try {
+    const session = await auth.api.getSession({ headers: req.headers });
+    if (!session) return res.status(401).json({ error: 'Unauthorized' });
+
+    const rows = await db.select().from(brief)
+      .where(eq(brief.userId, session.user.id))
+      .orderBy(desc(brief.createdAt));
+
+    res.json(rows.map(r => ({ ...r, stack: r.stack ? JSON.parse(r.stack) : [] })));
+  } catch (err) {
+    console.error('GET /api/briefs', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.post('/api/briefs', async (req, res) => {
+  try {
+    const session = await auth.api.getSession({ headers: req.headers });
+    if (!session) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { themeName, themeBlurb, forWho, smallestVersion, frictionVerdict, stack } = req.body;
+
+    const [row] = await db.insert(brief).values({
+      id: randomUUID(),
+      userId: session.user.id,
+      themeName,
+      themeBlurb: themeBlurb || null,
+      forWho: forWho || null,
+      smallestVersion: smallestVersion || null,
+      frictionVerdict: frictionVerdict || null,
+      stack: stack ? JSON.stringify(stack) : null,
+      status: 'held',
+    }).returning();
+
+    res.status(201).json({ ...row, stack: row.stack ? JSON.parse(row.stack) : [] });
+  } catch (err) {
+    console.error('POST /api/briefs', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.delete('/api/briefs/:id', async (req, res) => {
+  try {
+    const session = await auth.api.getSession({ headers: req.headers });
+    if (!session) return res.status(401).json({ error: 'Unauthorized' });
+
+    await db.delete(brief).where(eq(brief.id, req.params.id));
+    res.status(204).end();
+  } catch (err) {
+    console.error('DELETE /api/briefs', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

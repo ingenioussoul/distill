@@ -59,4 +59,17 @@ const capture = pgTable('capture', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-module.exports = { user, session, account, verification, capture };
+const brief = pgTable('brief', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  themeName: text('theme_name').notNull(),
+  themeBlurb: text('theme_blurb'),
+  forWho: text('for_who'),
+  smallestVersion: text('smallest_version'),
+  frictionVerdict: text('friction_verdict'),
+  stack: text('stack'), // JSON array
+  status: text('status').notNull().default('held'), // 'held' | 'built'
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+module.exports = { user, session, account, verification, capture, brief };

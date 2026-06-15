@@ -73,9 +73,9 @@ const A={
   s:{
     screen:'feed',captureMode:'camera',voiceState:'idle',voiceText:'',
     draftPhoto:null,draftInsight:'',draftThemeId:null,
-    activeThemeId:null,pressureData:null,pressureLoading:false,cameraFailed:false,toast:null,
+    activeThemeId:null,pressureData:null,pressureLoading:false,killConfirm:false,cameraFailed:false,toast:null,
     buildStarted:false,buildTargetLabel:'',
-    captures:[],themes:[],
+    captures:[],themes:[],heldBriefs:[],
   },
   stream:null,videoEl:null,_t:null,_viv:null,
   _voiceFull:'A spinner with no end — am I frozen, or thinking?',
@@ -237,6 +237,53 @@ const A={
     }catch(e){
       this.set({buildStarted:true,buildTargetLabel:target==='claude'?'Claude Code':'Ingenious Stack'});
     }
+  },
+
+  async holdTheme(){
+    const at=this.activeTheme();
+    const pd=this.s.pressureData||{};
+    try{
+      const r=await fetch('/api/briefs',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        themeName:at.name,themeBlurb:at.blurb,
+        forWho:pd.forWho||null,smallestVersion:pd.smallestVersion||null,
+        frictionVerdict:pd.frictionVerdict||null,stack:pd.stack||[],
+      })});
+      const saved=await r.json();
+      this.set(s=>({heldBriefs:[saved,...s.heldBriefs],screen:'themes',killConfirm:false}));
+      this.toast('Held — it keeps waiting quietly');
+    }catch(e){
+      this.set({screen:'themes',killConfirm:false});
+      this.toast('Held');
+    }
+  },
+
+  async killTheme(){
+    const at=this.activeTheme();
+    const ids=(at.captures||[]).map(c=>c.id).filter(Boolean);
+    if(ids.length){
+      try{
+        await fetch('/api/themes/kill',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({captureIds:ids})});
+      }catch(e){}
+    }
+    this.set(s=>({
+      captures:s.captures.filter(c=>!ids.includes(c.id)),
+      themes:s.themes.filter(t=>t.id!==s.activeThemeId),
+      screen:'themes',killConfirm:false,activeThemeId:null,pressureData:null,
+    }));
+    this.toast('Killed — idea and captures cleared');
+  },
+
+  async loadHeldBriefs(){
+    try{
+      const r=await fetch('/api/briefs',{credentials:'include'});
+      const data=await r.json();
+      this.set({heldBriefs:data});
+    }catch(e){}
+  },
+
+  async deleteBrief(id){
+    this.set(s=>({heldBriefs:s.heldBriefs.filter(b=>b.id!==id)}));
+    try{ await fetch(`/api/briefs/${id}`,{method:'DELETE',credentials:'include'}); }catch(e){}
   },
 
   async pressureTest(){
@@ -551,14 +598,22 @@ const A={
         <span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.14em;text-transform:uppercase">Build</span><span style="display:block;font-size:11px;opacity:.85;margin-top:3px">Turn it into a brief.</span></span>
         <span style="font-family:var(--font-sans);font-size:18px">→</span>
       </button>
-      <button onclick="A.set({screen:'themes'});A.toast('Held — it keeps gathering quietly')" style="text-align:left;border:1px solid var(--border);background:transparent;color:var(--ink);padding:15px 16px;width:100%">
+      <button onclick="A.holdTheme()" style="text-align:left;border:1px solid var(--border);background:transparent;color:var(--ink);padding:15px 16px;width:100%">
         <span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.14em;text-transform:uppercase">Hold</span>
-        <span style="display:block;font-size:11px;color:var(--ink-mid);margin-top:3px">Let it keep gathering.</span>
+        <span style="display:block;font-size:11px;color:var(--ink-mid);margin-top:3px">Save the brief. Come back to it.</span>
       </button>
-      <button onclick="A.set({screen:'themes'});A.toast('Killed — the noise is cleared')" style="text-align:left;border:1px solid var(--border);background:transparent;color:var(--ink-light);padding:15px 16px;width:100%">
-        <span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.14em;text-transform:uppercase">Kill</span>
-        <span style="display:block;font-size:11px;color:var(--ink-light);margin-top:3px">Clear the noise.</span>
-      </button>
+      ${this.s.killConfirm
+        ?`<div style="border:1px solid #c0392b;padding:15px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <span style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#c0392b">Delete idea + all captures?</span>
+          <div style="display:flex;gap:10px;flex-shrink:0">
+            <button onclick="A.set({killConfirm:false})" style="border:1px solid var(--border);background:transparent;color:var(--ink-light);font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;padding:8px 12px">Cancel</button>
+            <button onclick="A.killTheme()" style="border:none;background:#c0392b;color:#fff;font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;padding:8px 12px">Kill it</button>
+          </div>
+        </div>`
+        :`<button onclick="A.set({killConfirm:true})" style="text-align:left;border:1px solid var(--border);background:transparent;color:var(--ink-light);padding:15px 16px;width:100%">
+          <span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.14em;text-transform:uppercase">Kill</span>
+          <span style="display:block;font-size:11px;color:var(--ink-light);margin-top:3px">Delete idea and all its captures.</span>
+        </button>`}
     </div>`;
     return`<div style="height:100%;display:flex;flex-direction:column;background:var(--bg);animation:screenIn .4s ease both">
   <div style="padding:54px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
@@ -627,6 +682,21 @@ const A={
       </div>
       <div style="font-size:13px;line-height:1.6;color:var(--ink-mid);margin-top:20px;text-align:center">What you ship changes what you notice next.</div>
       <button onclick="A.reset()" style="width:100%;margin-top:18px;border:1px solid var(--border);background:transparent;color:var(--ink);font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;padding:15px">Repeat the loop ↻</button>
+      ${this.s.heldBriefs.length?`
+      <div style="margin-top:36px;border-top:1px solid var(--border);padding-top:24px">
+        <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-light);margin-bottom:14px">On hold</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          ${this.s.heldBriefs.map(b=>`
+          <div style="border:1px solid var(--border);padding:14px 16px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+            <div>
+              <div style="font-family:var(--font-display);font-size:15px;color:var(--ink);line-height:1.2">${b.themeName}</div>
+              ${b.smallestVersion?`<div style="font-size:12px;line-height:1.5;color:var(--ink-mid);margin-top:5px">${b.smallestVersion}</div>`:''}
+            </div>
+            <button onclick="A.deleteBrief('${b.id}')" style="flex-shrink:0;border:none;background:none;color:rgba(247,244,238,.25);font-size:16px;line-height:1;padding:2px 4px;-webkit-tap-highlight-color:transparent">×</button>
+          </div>`).join('')}
+        </div>
+      </div>`:''}
+
     </div>
   </div>
 </div>`;
@@ -857,7 +927,7 @@ const Auth = {
     const sd = await this.getSession();
     if(sd){
       this.session = sd;
-      await A.loadCaptures();
+      await Promise.all([A.loadCaptures(), A.loadHeldBriefs()]);
       A.render();
     } else {
       // Check if this is a magic link callback (token in URL)
