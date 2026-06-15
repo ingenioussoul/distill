@@ -1,0 +1,22 @@
+{
+  "name": "Distill",
+  "short_name": "Distill",
+  "description": "Turn what you notice into something you can build.",
+  "start_url": "/app",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0F0F0D",
+  "theme_color": "#0F0F0D",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
