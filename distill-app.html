@@ -246,6 +246,14 @@ const A={
     window.location.reload();
   },
 
+  async manageBilling(){
+    try{
+      const r=await fetch('/api/stripe/portal',{method:'POST',credentials:'include'});
+      const d=await r.json();
+      if(d.url) window.location.href=d.url;
+    }catch(e){ this.toast('Could not open billing portal'); }
+  },
+
   async holdTheme(){
     const at=this.activeTheme();
     const pd=this.s.pressureData||{};
@@ -398,6 +406,7 @@ const A={
       <div style="font-family:var(--font-display);font-size:24px;line-height:1;color:var(--ink)">What you noticed</div>
       <div style="display:flex;align-items:center;gap:14px;flex-shrink:0;margin-left:12px">
         <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-light)">${this.s.captures.length} captures</div>
+        <button onclick="A.manageBilling()" style="border:none;background:none;font-family:var(--font-mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-light);padding:0;opacity:0.5">Billing</button>
         <button onclick="A.signOut()" style="border:none;background:none;font-family:var(--font-mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-light);padding:0;opacity:0.5">Sign out</button>
       </div>
     </div>
@@ -955,15 +964,23 @@ const Auth = {
     const sd = await this.getSession();
     if(sd){
       this.session = sd;
+      // Check subscription
+      const subR = await fetch('/api/subscription/status', { credentials: 'include' });
+      const subD = subR.ok ? await subR.json() : { active: false };
+      if(!subD.active){
+        this.renderPaywall();
+        return;
+      }
       await Promise.all([A.loadCaptures(), A.loadHeldBriefs()]);
+      // Clear subscribed param from URL after successful checkout redirect
+      const params = new URLSearchParams(window.location.search);
+      if(params.has('subscribed')) window.history.replaceState({}, '', '/app');
       if(!localStorage.getItem('distill_onboarded')) A.set({screen:'onboarding'});
       else A.render();
     } else {
       // Check if this is a magic link callback (token in URL)
       const params = new URLSearchParams(window.location.search);
       if(params.has('token')){
-        // Better Auth handles the callback server-side via callbackURL=/app
-        // but if we land here with a token param, verify it
         const r = await fetch(`/api/auth/magic-link/verify?token=${params.get('token')}`, { credentials: 'include' });
         if(r.ok){
           window.history.replaceState({}, '', '/app');
@@ -974,6 +991,48 @@ const Auth = {
       }
       this.renderSignIn();
     }
+  },
+
+  renderPaywall(){
+    const root = document.getElementById('app-root');
+    root.innerHTML = `
+<div style="height:100%;display:flex;flex-direction:column;background:#0F0F0D;padding:64px 34px 48px;position:relative;overflow:hidden;animation:screenIn .4s ease both">
+  <div aria-hidden="true" style="position:absolute;left:-14%;top:55%;width:130%;height:2px;background:linear-gradient(90deg,transparent,#C4500A 20%,#C4500A 80%,transparent);transform:rotate(-24deg);pointer-events:none"></div>
+  <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.32em;text-transform:uppercase;color:#C4500A;animation:obWord .6s ease both">An Ingenious Soul product</div>
+  <div style="font-family:'DM Serif Display',Georgia,serif;font-size:52px;line-height:1;color:#F4F1EB;margin:18px 0 6px;animation:obWord .6s ease both .1s">Distill<span style="color:#C4500A">.</span></div>
+  <div style="font-size:14px;line-height:1.7;color:rgba(247,244,238,.72);max-width:28ch;animation:obWord .6s ease both .2s">Turn what you notice in the world into something you can build.</div>
+  <div style="margin-top:auto;display:flex;flex-direction:column;gap:22px;animation:obWord .7s ease both .4s">
+    <div style="border:1px solid rgba(247,244,238,.14);padding:22px">
+      <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:#C4500A;margin-bottom:14px">What you get</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${['Capture friction — photo, voice, or text','AI pattern detection across your captures','Pressure test and build brief for every pattern','Claude Code prompt, ready to paste'].map(f=>`
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <span style="color:#C4500A;flex-shrink:0;margin-top:1px">✓</span>
+          <span style="font-size:13px;line-height:1.5;color:rgba(247,244,238,.72)">${f}</span>
+        </div>`).join('')}
+      </div>
+    </div>
+    <button id="sub-btn" style="width:100%;border:none;background:#C4500A;color:#F7F4EE;font-family:'DM Mono',monospace;font-size:13px;letter-spacing:0.14em;text-transform:uppercase;padding:20px;display:flex;align-items:center;justify-content:center;gap:10px">Subscribe — $9 / mo <span style="font-family:'DM Sans',sans-serif">→</span></button>
+    <div id="sub-msg" style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(247,244,238,.35);text-align:center;min-height:12px"></div>
+    <button onclick="Auth.renderSignIn()" style="border:none;background:none;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(247,244,238,.3);padding:0;text-align:center">Use a different account</button>
+  </div>
+</div>`;
+    document.getElementById('sub-btn').addEventListener('click', async () => {
+      const btn = document.getElementById('sub-btn');
+      const msg = document.getElementById('sub-msg');
+      btn.disabled = true;
+      btn.textContent = 'Redirecting…';
+      try {
+        const r = await fetch('/api/stripe/checkout', { method: 'POST', credentials: 'include' });
+        const d = await r.json();
+        if(d.url) window.location.href = d.url;
+        else { msg.textContent = 'Something went wrong — try again'; btn.disabled = false; btn.textContent = 'Subscribe — $9 / mo →'; }
+      } catch(e) {
+        msg.textContent = 'Network error — try again';
+        btn.disabled = false;
+        btn.textContent = 'Subscribe — $9 / mo →';
+      }
+    });
   }
 };
 

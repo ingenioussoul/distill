@@ -1,4 +1,4 @@
-const { pgTable, text, timestamp, boolean } = require('drizzle-orm/pg-core');
+const { pgTable, text, timestamp, boolean, integer } = require('drizzle-orm/pg-core');
 
 const user = pgTable('user', {
   id: text('id').primaryKey(),
@@ -72,4 +72,14 @@ const brief = pgTable('brief', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-module.exports = { user, session, account, verification, capture, brief };
+const subscription = pgTable('subscription', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  stripeCustomerId: text('stripe_customer_id'),
+  stripeSubscriptionId: text('stripe_subscription_id'),
+  status: text('status').notNull().default('inactive'), // 'active' | 'trialing' | 'inactive' | 'canceled'
+  currentPeriodEnd: timestamp('current_period_end'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+module.exports = { user, session, account, verification, capture, brief, subscription };
