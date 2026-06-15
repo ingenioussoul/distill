@@ -239,6 +239,13 @@ const A={
     }
   },
 
+  async signOut(){
+    try{
+      await fetch('/api/auth/sign-out',{method:'POST',credentials:'include'});
+    }catch(e){}
+    window.location.reload();
+  },
+
   async holdTheme(){
     const at=this.activeTheme();
     const pd=this.s.pressureData||{};
@@ -370,7 +377,10 @@ const A={
     <div style="display:flex;align-items:baseline;gap:7px">${this.phaseHTML('See',false)}</div>
     <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:5px">
       <div style="font-family:var(--font-display);font-size:24px;line-height:1;color:var(--ink)">What you noticed</div>
-      <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-light);flex-shrink:0;margin-left:12px">${this.s.captures.length} captures</div>
+      <div style="display:flex;align-items:center;gap:14px;flex-shrink:0;margin-left:12px">
+        <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-light)">${this.s.captures.length} captures</div>
+        <button onclick="A.signOut()" style="border:none;background:none;font-family:var(--font-mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-light);padding:0;opacity:0.5">Sign out</button>
+      </div>
     </div>
   </div>
   <div style="flex:1;overflow-y:auto;overflow-x:hidden;padding:6px 22px 104px;width:100%;box-sizing:border-box">
