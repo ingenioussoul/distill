@@ -73,7 +73,7 @@ const A={
   s:{
     screen:'feed',captureMode:'camera',voiceState:'idle',voiceText:'',
     draftPhoto:null,draftInsight:'',draftThemeId:null,
-    activeThemeId:null,cameraFailed:false,toast:null,
+    activeThemeId:null,pressureData:null,pressureLoading:false,cameraFailed:false,toast:null,
     buildStarted:false,buildTargetLabel:'',
     captures:[],themes:[],
   },
@@ -201,6 +201,19 @@ const A={
     }catch(e){}
   },
 
+  async pressureTest(){
+    const at=this.activeTheme();
+    if(!at.name)return;
+    this.set({pressureLoading:true,pressureData:null,screen:'pressure'});
+    try{
+      const r=await fetch('/api/themes/pressure',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({themeName:at.name,themeBlurb:at.blurb,captures:at.captures||[]})});
+      const data=await r.json();
+      this.set({pressureData:data,pressureLoading:false});
+    }catch(e){
+      this.set({pressureLoading:false});
+    }
+  },
+
   reset(){
     this.stopCamera();
     clearInterval(this._viv);
@@ -216,10 +229,8 @@ const A={
   themeName(id){const t=this.s.themes.find(x=>x.id===id);return t?t.name:'Unfiled'},
   activeTheme(){
     const at=this.s.themes.find(t=>t.id===this.s.activeThemeId);
-    if(!at)return{name:'',blurb:'',count:0,frames:[]};
-    const frames=[...this.s.captures].filter(c=>c.themeId===at.id).sort((a,b)=>b.order-a.order)
-      .map((c,i)=>({...c,delay:i*85+'ms'}));
-    return{...at,frames};
+    if(!at)return{name:'',blurb:'',count:0,captures:[]};
+    return at;
   },
   phaseHTML(active,dark){
     const muted=dark?'rgba(247,244,238,.4)':'var(--ink-light)';
@@ -411,7 +422,8 @@ const A={
       const barColor=ready?'var(--accent)':'var(--ink)';
       const statusColor=ready?'var(--accent)':'var(--ink-light)';
       const statusLabel=ready?'Ready to build':'Gathering';
-      return`<div style="text-align:left;border:1px solid ${border};background:${bg};padding:18px;display:flex;flex-direction:column;gap:13px;animation:frameIn .5s ease both;animation-delay:${i*70}ms">
+      const clickAttr=ready?`onclick="A.set({screen:'graduation',activeThemeId:'${t.id}',pressureData:null})" style="cursor:pointer;text-align:left;border:1px solid ${border};background:${bg};padding:18px;display:flex;flex-direction:column;gap:13px;animation:frameIn .5s ease both;animation-delay:${i*70}ms"`:`style="text-align:left;border:1px solid ${border};background:${bg};padding:18px;display:flex;flex-direction:column;gap:13px;animation:frameIn .5s ease both;animation-delay:${i*70}ms"`;
+      return`<div ${clickAttr}>
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
     <div style="font-family:var(--font-display);font-size:19px;line-height:1.15;color:var(--ink)">${t.name}</div>
     <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.06em;color:${barColor};white-space:nowrap;padding-top:3px">${t.count} / ${t.threshold}</div>
@@ -452,9 +464,9 @@ const A={
 
   screenGraduation(){
     const at=this.activeTheme();
-    const frames=at.frames.slice(0,5).map((fr,i)=>
-      `<div style="width:46px;height:46px;flex-shrink:0;background:${fr.tone};border:1px solid rgba(247,244,238,.18);position:relative;overflow:hidden;animation:frameIn .5s ease both;animation-delay:${i*85}ms">
-        ${fr.photo?`<img src="${fr.photo}" style="width:100%;height:100%;object-fit:cover;display:block">`:''}</div>`
+    const frames=(at.captures||[]).slice(0,5).map((fr,i)=>
+      `<div style="width:46px;height:46px;flex-shrink:0;background:${fr.tone||'#3A3830'};border:1px solid rgba(247,244,238,.18);display:flex;align-items:center;justify-content:center;animation:frameIn .5s ease both;animation-delay:${i*85}ms">
+        <div style="width:6px;height:6px;border-radius:50%;background:rgba(247,244,238,.35)"></div></div>`
     ).join('');
     return`<div style="height:100%;display:flex;flex-direction:column;background:var(--bg-ink);animation:screenIn .45s ease both">
   <div style="padding:54px 22px 12px;display:flex;align-items:center;justify-content:space-between;background:var(--bg)">
@@ -472,7 +484,7 @@ const A={
     <div style="font-size:13px;line-height:1.65;color:rgba(247,244,238,.62);margin-top:12px;max-width:34ch;animation:drawUp .6s ease both .35s">It crossed the threshold — and Distill caught it before you consciously did.</div>
     <div style="display:flex;gap:8px;margin-top:28px;animation:drawUp .6s ease both .45s">${frames}</div>
     <div style="margin-top:auto;padding-top:32px;animation:drawUp .6s ease both .6s">
-      <button onclick="A.set({screen:'pressure'})" style="width:100%;border:none;background:var(--paper);color:#0F0F0D;font-family:var(--font-mono);font-size:12px;letter-spacing:0.14em;text-transform:uppercase;padding:17px;display:flex;align-items:center;justify-content:center;gap:10px">Pressure-test it <span style="font-family:var(--font-sans)">→</span></button>
+      <button onclick="A.pressureTest()" style="width:100%;border:none;background:var(--paper);color:#0F0F0D;font-family:var(--font-mono);font-size:12px;letter-spacing:0.14em;text-transform:uppercase;padding:17px;display:flex;align-items:center;justify-content:center;gap:10px">Pressure-test it <span style="font-family:var(--font-sans)">→</span></button>
     </div>
   </div>
 </div>`;
@@ -480,27 +492,22 @@ const A={
 
   screenPressure(){
     const at=this.activeTheme();
-    return`<div style="height:100%;display:flex;flex-direction:column;background:var(--bg);animation:screenIn .4s ease both">
-  <div style="padding:54px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-    <button onclick="A.set({screen:'graduation'})" style="border:none;background:none;font-family:var(--font-mono);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-light);padding:0">←</button>
-    <div style="display:flex;align-items:baseline;gap:7px">${this.phaseHTML('Build',false)}</div>
-    <div style="width:18px"></div>
-  </div>
-  <div style="flex:1;overflow:auto;padding:24px 28px 24px">
-    <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-light);margin-bottom:8px">Pressure test</div>
-    <div style="font-family:var(--font-display);font-size:24px;line-height:1.12;color:var(--ink);margin-bottom:22px">${at.name}</div>
-    <div style="display:flex;flex-direction:column">
+    const pd=this.s.pressureData;
+    const loading=this.s.pressureLoading;
+    const rows=loading
+      ?`<div style="display:flex;align-items:center;justify-content:center;padding:48px 0"><div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:var(--accent);animation:blink 1.4s ease-in-out infinite">Analyzing…</div></div>`
+      :`<div style="display:flex;flex-direction:column">
       <div style="padding:16px 0;border-top:1px solid var(--border)">
         <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-light)">Who is it for</div>
-        <div style="font-size:15px;line-height:1.5;color:var(--ink);margin-top:6px">Solo builders hitting this same wall every week.</div>
+        <div style="font-size:15px;line-height:1.5;color:var(--ink);margin-top:6px">${pd?pd.forWho:`Solo builders hitting this wall every week.`}</div>
       </div>
       <div style="padding:16px 0;border-top:1px solid var(--border)">
         <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-light)">Smallest version</div>
-        <div style="font-size:15px;line-height:1.5;color:var(--ink);margin-top:6px">The one cut that kills the friction — nothing more.</div>
+        <div style="font-size:15px;line-height:1.5;color:var(--ink);margin-top:6px">${pd?pd.smallestVersion:`The one cut that removes the friction — nothing more.`}</div>
       </div>
       <div style="padding:16px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
         <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-light)">Is the friction real</div>
-        <div style="font-size:15px;line-height:1.5;color:var(--ink);margin-top:6px"><span style="color:var(--accent)">${at.count} captures</span> across three weeks. Yes.</div>
+        <div style="font-size:15px;line-height:1.5;color:var(--ink);margin-top:6px">${pd?pd.frictionVerdict:`<span style="color:var(--accent)">${at.count} captures.</span> Yes.`}</div>
       </div>
     </div>
     <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-light);margin:26px 0 12px">One call</div>
@@ -517,7 +524,17 @@ const A={
         <span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.14em;text-transform:uppercase">Kill</span>
         <span style="display:block;font-size:11px;color:var(--ink-light);margin-top:3px">Clear the noise.</span>
       </button>
-    </div>
+    </div>`;
+    return`<div style="height:100%;display:flex;flex-direction:column;background:var(--bg);animation:screenIn .4s ease both">
+  <div style="padding:54px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+    <button onclick="A.set({screen:'graduation'})" style="border:none;background:none;font-family:var(--font-mono);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-light);padding:0">←</button>
+    <div style="display:flex;align-items:baseline;gap:7px">${this.phaseHTML('Build',false)}</div>
+    <div style="width:18px"></div>
+  </div>
+  <div style="flex:1;overflow:auto;padding:24px 28px 24px">
+    <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-light);margin-bottom:8px">Pressure test</div>
+    <div style="font-family:var(--font-display);font-size:24px;line-height:1.12;color:var(--ink);margin-bottom:22px">${at.name}</div>
+    ${rows}
   </div>
 </div>`;
   },
@@ -572,11 +589,11 @@ const A={
       </div>
       <div style="padding:15px 0;border-top:1px solid var(--border)">
         <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent)">Who it's for</div>
-        <div style="font-size:14px;line-height:1.55;color:var(--ink);margin-top:6px">Solo builders who hit this weekly — and the unknown creatives who feel it but can't yet build.</div>
+        <div style="font-size:14px;line-height:1.55;color:var(--ink);margin-top:6px">${this.s.pressureData?this.s.pressureData.forWho:'Solo builders who hit this weekly.'}</div>
       </div>
       <div style="padding:15px 0;border-top:1px solid var(--border)">
         <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent)">Smallest version</div>
-        <div style="font-size:14px;line-height:1.55;color:var(--ink);margin-top:6px">The single cut that removes the friction — shipped, not theorised.</div>
+        <div style="font-size:14px;line-height:1.55;color:var(--ink);margin-top:6px">${this.s.pressureData?this.s.pressureData.smallestVersion:'The single cut that removes the friction — shipped, not theorised.'}</div>
       </div>
       <div style="padding:15px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
         <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent)">The stack</div>

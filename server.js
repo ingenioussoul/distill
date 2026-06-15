@@ -137,8 +137,8 @@ The captures array should contain the 1-based index numbers of captures that bel
       name: t.name,
       blurb: t.blurb,
       count: t.captures.length,
-      threshold: 5,
-      graduated: t.captures.length >= 5,
+      threshold: 3,
+      graduated: t.captures.length >= 3,
       captureIndices: t.captures,
       captures: t.captures.map(idx => rows[idx - 1]).filter(Boolean).map(c => ({
         id: c.id,
@@ -151,6 +151,50 @@ The captures array should contain the 1-based index numbers of captures that bel
     res.json({ themes });
   } catch (err) {
     console.error('POST /api/themes/analyze', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Pressure test — AI analysis for a single theme
+app.post('/api/themes/pressure', async (req, res) => {
+  try {
+    const session = await auth.api.getSession({ headers: req.headers });
+    if (!session) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { themeName, themeBlurb, captures } = req.body;
+    if (!themeName || !captures || !captures.length) {
+      return res.status(400).json({ error: 'Missing theme data' });
+    }
+
+    const client = new Anthropic();
+    const captureList = captures.map((c, i) => `${i + 1}. ${c.insight}`).join('\n');
+
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 512,
+      messages: [{
+        role: 'user',
+        content: `A builder has noticed a recurring friction pattern: "${themeName}" — ${themeBlurb}
+
+Their captures:
+${captureList}
+
+Write a sharp pressure test for this as a potential product. Return ONLY valid JSON:
+{
+  "forWho": "One sentence — who feels this friction acutely (be specific, not generic)",
+  "smallestVersion": "One sentence — the single smallest thing that removes this friction and nothing else",
+  "frictionVerdict": "One sentence — why this friction is real and worth solving (cite the pattern)"
+}`,
+      }],
+    });
+
+    const text = message.content[0].text.trim();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return res.status(500).json({ error: 'Could not generate pressure test' });
+
+    res.json(JSON.parse(jsonMatch[0]));
+  } catch (err) {
+    console.error('POST /api/themes/pressure', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
