@@ -217,10 +217,19 @@ const A={
   async copyBrief(target){
     const at=this.activeTheme();
     const pd=this.s.pressureData||{};
-    const stack=(pd.stack||['Express 5','Better Auth','Drizzle · Neon','Railway']).join(' · ');
-    const prompt=target==='claude'
-      ?`Build this: ${at.name}\n\nThe friction: ${at.blurb}\nWho it's for: ${pd.forWho||''}\nSmallest version: ${pd.smallestVersion||''}\nStack: ${stack}\n\nStart with the schema and API routes. Keep it to the smallest version — nothing extra.`
-      :`Scaffold this: ${at.name}\n\nFriction: ${at.blurb}\nFor: ${pd.forWho||''}\nMVP: ${pd.smallestVersion||''}\nStack: ${stack}`;
+    const allStack=(pd.stack||['Express 5','Better Auth','Drizzle · Neon','Railway']);
+    const knownBase=['Express 5','Better Auth','Drizzle + Neon','Drizzle · Neon','Railway','Vite','React','Stripe'];
+    const newStack=allStack.filter(s=>!knownBase.some(k=>s.toLowerCase().includes(k.toLowerCase())||k.toLowerCase().includes(s.toLowerCase())));
+    const fullStack=allStack.join(' · ');
+
+    let prompt;
+    if(target==='claude'){
+      prompt=`Build this: ${at.name}\n\nThe friction: ${at.blurb}\nWho it's for: ${pd.forWho||''}\nSmallest version: ${pd.smallestVersion||''}\nStack: ${fullStack}\n\nStart with the schema and API routes. Keep it to the smallest version — nothing extra.`;
+    } else {
+      const extras=newStack.length?`\nAdditional dependencies needed for this product: ${newStack.join(', ')}`:'\nNo extra dependencies — the Stack covers everything.';
+      prompt=`I've cloned Ingenious Stack (Express 5, Better Auth, Drizzle + Neon, Stripe already wired and running).\n\nBuild "${at.name}" on top of it.\n\nThe friction: ${at.blurb}\nWho it's for: ${pd.forWho||''}\nSmallest version: ${pd.smallestVersion||''}\n${extras}\n\nSkip auth, DB connection, and server setup — those are done. Add only what's specific to this product: the new schema tables, API routes, and any product-specific logic. Keep it to the smallest version.`;
+    }
+
     try{
       await navigator.clipboard.writeText(prompt);
       this.set({buildStarted:true,buildTargetLabel:target==='claude'?'Claude Code':'Ingenious Stack'});
