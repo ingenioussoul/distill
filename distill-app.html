@@ -68,29 +68,6 @@ input{-webkit-appearance:none;appearance:none}
 <div id="app-root"></div>
 
 <script>
-// ─── Seed data ─────────────────────────────────────────────────────────────
-function getSeed(){
-  const themes=[
-    {id:'t1',name:'Forms that fight back',threshold:5,count:4,blurb:'Inputs that reject you with no reason why.',graduated:false},
-    {id:'t2',name:'Receipts that vanish',threshold:5,count:3,blurb:'Proof of purchase, gone the moment you need it.',graduated:false},
-    {id:'t3',name:'Waiting, no feedback',threshold:5,count:2,blurb:'Spinners that never say how long is left.',graduated:false},
-  ];
-  const c=(order,frame,tone,insight,themeId,time)=>({id:'c'+order,order,frame,tone,insight,themeId,time,photo:null});
-  const captures=[
-    c(1,'FR.001','#211C16','A signup form wiped every field over one typo','t1','3 wk'),
-    c(2,'FR.002','#9b4f2a','"Invalid." Invalid how? It never said','t1','2 wk'),
-    c(3,'FR.003','#2E2A22','Password rules stayed hidden until I failed them','t1','12 d'),
-    c(4,'FR.004','#6B5D49','The form rejected my actual home address','t1','5 d'),
-    c(5,'FR.005','#C4500A','Returned it — could not find the receipt anywhere','t2','9 d'),
-    c(6,'FR.006','#3A3830','A screenshot of a receipt I still cannot locate','t2','6 d'),
-    c(7,'FR.007','#4a4238','Paper receipt faded down to a blank slip','t2','4 d'),
-    c(8,'FR.008','#211C16','Upload bar stuck at 99% for a full minute','t3','3 d'),
-    c(9,'FR.009','#9b4f2a','Frozen, or thinking? No way to tell','t3','2 d'),
-    c(10,'FR.010','#2E2A22','A door labelled PUSH that only ever pulls',null,'today'),
-  ];
-  return {captures,themes};
-}
-
 // ─── App ───────────────────────────────────────────────────────────────────
 const A={
   s:{
@@ -98,7 +75,7 @@ const A={
     draftPhoto:null,draftInsight:'',draftThemeId:null,
     activeThemeId:null,cameraFailed:false,toast:null,
     buildStarted:false,buildTargetLabel:'',
-    ...getSeed()
+    captures:[],themes:[],
   },
   stream:null,videoEl:null,_t:null,_viv:null,
   _voiceFull:'A spinner with no end — am I frozen, or thinking?',
@@ -153,19 +130,35 @@ const A={
   voiceStart(){
     if(this.s.voiceState==='listening')return;
     this.set({voiceState:'listening',voiceText:''});
-    clearInterval(this._viv);
-    let i=0;
-    this._viv=setInterval(()=>{
-      i++;
-      this.set({voiceText:this._voiceFull.slice(0,i)});
-      if(i>=this._voiceFull.length)clearInterval(this._viv);
-    },36);
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){
+      this.set({voiceState:'idle'});
+      this.toast('Speech not supported on this browser');
+      return;
+    }
+    const r=new SR();
+    r.continuous=true;
+    r.interimResults=true;
+    r.lang='en-US';
+    this._recognition=r;
+    r.onresult=e=>{
+      let text='';
+      for(let i=0;i<e.results.length;i++) text+=e.results[i][0].transcript;
+      this.set({voiceText:text});
+    };
+    r.onerror=()=>{this.set({voiceState:'idle',voiceText:''});};
+    r.start();
   },
   voiceEnd(){
     if(this.s.voiceState!=='listening')return;
-    clearInterval(this._viv);
-    this.set({draftPhoto:null,draftInsight:this._voiceFull,draftThemeId:'t3',
-      screen:'captureInsight',captureMode:'camera',voiceState:'idle',voiceText:''});
+    const text=(this.s.voiceText||'').trim();
+    if(this._recognition){try{this._recognition.stop();}catch(e){}this._recognition=null;}
+    if(text){
+      this.set({draftPhoto:null,draftInsight:text,draftThemeId:null,
+        screen:'captureInsight',captureMode:'camera',voiceState:'idle',voiceText:''});
+    } else {
+      this.set({voiceState:'idle',voiceText:''});
+    }
   },
 
   save(){
@@ -185,13 +178,36 @@ const A={
     if(this.s.screen==='feed')this.toast('Capture saved · pattern updated');
   },
 
+  async analyzeThemes(){
+    if(this.s.themesLoading)return;
+    this.set({themesLoading:true,themesMessage:null,themes:[]});
+    try{
+      const r=await fetch('/api/themes/analyze',{method:'POST',credentials:'include'});
+      const d=await r.json();
+      if(d.themes&&d.themes.length>0){
+        this.set({themes:d.themes,themesLoading:false,themesMessage:null});
+      } else {
+        this.set({themes:[],themesLoading:false,themesMessage:d.message||'No clear patterns yet — keep capturing.'});
+      }
+    }catch(e){
+      this.set({themesLoading:false,themesMessage:'Could not analyze right now — try again.'});
+    }
+  },
+
+  async deleteCapture(id){
+    this.set(s=>({captures:s.captures.filter(c=>c.id!==id)}));
+    try{
+      await fetch(`/api/captures/${id}`,{method:'DELETE',credentials:'include'});
+    }catch(e){}
+  },
+
   reset(){
     this.stopCamera();
     clearInterval(this._viv);
     this.s={screen:'feed',captureMode:'camera',voiceState:'idle',voiceText:'',
       draftPhoto:null,draftInsight:'',draftThemeId:null,
       activeThemeId:null,cameraFailed:false,toast:null,
-      buildStarted:false,buildTargetLabel:'',...getSeed()};
+      buildStarted:false,buildTargetLabel:'',captures:[],themes:[]};
     this.render();
   },
 
@@ -210,7 +226,7 @@ const A={
     return['See','Think','Build','Repeat'].map((st,i)=>{
       const on=st===active;
       return(i>0?`<span style="color:${muted};font-size:7px">·</span>`:'')+
-        `<span style="font-family:var(--font-mono);font-size:${on?'10px':'8px'};letter-spacing:0.18em;text-transform:uppercase;color:${on?'var(--accent)':muted};transition:color .3s">${st}</span>`;
+        `<span style="font-family:var(--font-mono);font-size:${on?'clamp(13px,3.5vw,18px)':'clamp(11px,2.8vw,15px)'};letter-spacing:0.18em;text-transform:uppercase;color:${on?'var(--accent)':muted};transition:color .3s">${st}</span>`;
     }).join('');
   },
 
@@ -237,7 +253,7 @@ const A={
   screenFeed(){
     const list=[...this.s.captures].sort((a,b)=>b.order-a.order);
     const rows=list.map((c,i)=>`
-<div style="display:flex;gap:12px;padding:16px 0;border-bottom:1px solid var(--border);animation:frameIn .5s ease both;animation-delay:${i*55}ms;overflow:hidden;width:100%;box-sizing:border-box">
+<div style="display:flex;gap:12px;padding:16px 0;border-bottom:1px solid var(--border);animation:frameIn .5s ease both;animation-delay:${i*55}ms;overflow:hidden;width:100%;box-sizing:border-box;align-items:flex-start">
   <div style="width:52px;height:52px;flex-shrink:0;background:${c.tone};position:relative;overflow:hidden;border:1px solid rgba(15,15,13,.18)">
     ${c.photo?`<img src="${c.photo}" style="width:100%;height:100%;object-fit:cover;display:block">`:''}
     <div style="position:absolute;left:4px;bottom:3px;font-family:var(--font-mono);font-size:7px;letter-spacing:0.1em;color:rgba(247,244,238,.92)">${c.frame}</div>
@@ -250,6 +266,7 @@ const A={
       <span style="flex-shrink:0">${c.time}</span>
     </div>
   </div>
+  <button onclick="A.deleteCapture('${c.id}')" style="flex-shrink:0;border:none;background:none;color:rgba(247,244,238,.25);font-size:18px;line-height:1;padding:2px 4px;-webkit-tap-highlight-color:transparent" title="Delete">×</button>
 </div>`).join('');
 
     return`<div style="height:100%;display:flex;flex-direction:column;animation:screenIn .4s ease both">
@@ -261,7 +278,13 @@ const A={
       <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-light);flex-shrink:0;margin-left:12px">${this.s.captures.length} captures</div>
     </div>
   </div>
-  <div style="flex:1;overflow-y:auto;overflow-x:hidden;padding:6px 22px 104px;width:100%;box-sizing:border-box">${rows}</div>
+  <div style="flex:1;overflow-y:auto;overflow-x:hidden;padding:6px 22px 104px;width:100%;box-sizing:border-box">
+    ${rows||`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 34px;text-align:center;gap:16px;animation:screenIn .5s ease both">
+      <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:var(--accent)">Nothing here yet</div>
+      <div style="font-family:var(--font-display);font-size:28px;line-height:1.15;color:var(--ink)">Start noticing.</div>
+      <div style="font-size:13px;line-height:1.7;color:var(--ink-light);max-width:24ch">Hit capture and point it at something that felt off.</div>
+    </div>`}
+  </div>
   ${this.tabBarHTML('feed')}
   ${this.s.toast?`<div style="position:absolute;left:50%;bottom:108px;transform:translateX(-50%);background:var(--accent);color:var(--paper);font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;padding:11px 18px;white-space:nowrap;animation:toastIn .3s ease both;z-index:80;box-shadow:0 8px 24px rgba(15,15,13,.28)">${this.s.toast}</div>`:''}
 </div>`;
@@ -276,36 +299,30 @@ const A={
     <div style="display:flex;align-items:baseline;gap:7px">${this.phaseHTML('See',false)}</div>
     <div style="width:18px"></div>
   </div>
-  <div id="cam-gesture-area" style="flex:1;display:flex;flex-direction:column;min-height:0">
-    <div id="viewfinder" style="flex:1;position:relative;overflow:hidden;background:#0F0F0D;touch-action:none;cursor:crosshair">
+  <div style="flex:1;display:flex;flex-direction:column;min-height:0">
+    <div style="flex:1;position:relative;overflow:hidden;background:#0F0F0D">
       <div style="position:absolute;inset:0;background:linear-gradient(120deg,#1c1610,#0F0F0D 68%)"></div>
-      <div style="position:absolute;inset:0;background:radial-gradient(120% 85% at 58% 32%,rgba(196,80,10,.22),transparent 60%)"></div>
-      <div style="position:absolute;top:14%;left:50%;transform:translateX(-50%);width:112px;height:60%;background:linear-gradient(100deg,#2c2218,#19130c);border:1px solid rgba(247,244,238,.1)"></div>
-      <div style="position:absolute;top:14%;left:calc(50% - 56px);width:2px;height:60%;background:rgba(247,244,238,.12)"></div>
-      <div style="position:absolute;top:46%;left:calc(50% + 36px);width:8px;height:8px;border-radius:50%;background:rgba(247,244,238,.32)"></div>
-      <div style="position:absolute;left:0;right:0;bottom:18%;height:1px;background:rgba(247,244,238,.06)"></div>
-      ${!this.s.cameraFailed?`<video id="cam-feed" autoplay playsinline muted style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:transparent"></video>`:''}
+      <div style="position:absolute;inset:0;background:radial-gradient(120% 85% at 58% 32%,rgba(196,80,10,.18),transparent 60%)"></div>
       <div style="position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.4) 100%)"></div>
-      <div style="position:absolute;top:24px;left:24px;width:26px;height:26px;border-top:2px solid rgba(247,244,238,.85);border-left:2px solid rgba(247,244,238,.85)"></div>
-      <div style="position:absolute;top:24px;right:24px;width:26px;height:26px;border-top:2px solid rgba(247,244,238,.85);border-right:2px solid rgba(247,244,238,.85)"></div>
-      <div style="position:absolute;bottom:84px;left:24px;width:26px;height:26px;border-bottom:2px solid rgba(247,244,238,.85);border-left:2px solid rgba(247,244,238,.85)"></div>
-      <div style="position:absolute;bottom:84px;right:24px;width:26px;height:26px;border-bottom:2px solid rgba(247,244,238,.85);border-right:2px solid rgba(247,244,238,.85)"></div>
+      <div style="position:absolute;top:18px;left:18px;width:28px;height:28px;border-top:2px solid rgba(247,244,238,.7);border-left:2px solid rgba(247,244,238,.7)"></div>
+      <div style="position:absolute;top:18px;right:18px;width:28px;height:28px;border-top:2px solid rgba(247,244,238,.7);border-right:2px solid rgba(247,244,238,.7)"></div>
+      <div style="position:absolute;bottom:18px;left:18px;width:28px;height:28px;border-bottom:2px solid rgba(247,244,238,.7);border-left:2px solid rgba(247,244,238,.7)"></div>
+      <div style="position:absolute;bottom:18px;right:18px;width:28px;height:28px;border-bottom:2px solid rgba(247,244,238,.7);border-right:2px solid rgba(247,244,238,.7)"></div>
       <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:scan 2.8s linear infinite"></div>
-      <div style="position:absolute;left:0;right:0;top:42%;transform:translateY(-50%);text-align:center;padding:0 30px">
-        <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(247,244,238,.7)">Point at the friction</div>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;padding:0 30px;text-align:center">
+        <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(247,244,238,.6)">Point at the friction</div>
       </div>
-      <div aria-hidden="true" style="position:absolute;right:-46px;bottom:62px;width:170px;height:1px;background:linear-gradient(90deg,transparent,var(--accent));transform:rotate(-45deg);transform-origin:right center;pointer-events:none"></div>
-      <button onclick="A.set({captureMode:'voice',voiceState:'idle',voiceText:''})" style="position:absolute;right:16px;bottom:16px;display:flex;align-items:center;gap:7px;background:rgba(15,15,13,.62);border:1px solid var(--accent);color:var(--accent);font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;padding:10px 13px;backdrop-filter:blur(4px)">Hold to speak <span style="font-size:14px;line-height:1;animation:nudgeDiag 1.8s ease-in-out infinite">↗</span></button>
-      <div aria-hidden="true" style="position:absolute;left:-46px;bottom:62px;width:170px;height:1px;background:linear-gradient(270deg,transparent,var(--accent));transform:rotate(45deg);transform-origin:left center;pointer-events:none"></div>
-      <button onclick="A.set({screen:'captureInsight',draftPhoto:null,draftInsight:'',draftThemeId:null})" style="position:absolute;left:16px;bottom:16px;display:flex;align-items:center;gap:7px;background:rgba(15,15,13,.62);border:1px solid rgba(247,244,238,.35);color:rgba(247,244,238,.7);font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;padding:10px 13px;backdrop-filter:blur(4px)"><span style="font-size:14px;line-height:1;transform:scaleX(-1);display:inline-block;animation:nudgeDiag 1.8s ease-in-out infinite">↗</span> Hold to type</button>
+      <button onclick="A.set({captureMode:'voice',voiceState:'idle',voiceText:''})" style="position:absolute;right:16px;bottom:16px;display:flex;align-items:center;gap:7px;background:rgba(15,15,13,.62);border:1px solid var(--accent);color:var(--accent);font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;padding:10px 13px;backdrop-filter:blur(4px)">Speak ↗</button>
+      <button onclick="A.set({screen:'captureInsight',draftPhoto:null,draftInsight:'',draftThemeId:null})" style="position:absolute;left:16px;bottom:16px;display:flex;align-items:center;gap:7px;background:rgba(15,15,13,.62);border:1px solid rgba(247,244,238,.35);color:rgba(247,244,238,.7);font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;padding:10px 13px;backdrop-filter:blur(4px)">↙ Type</button>
     </div>
     <div style="padding:24px 22px 34px;background:var(--bg-ink);display:flex;flex-direction:column;align-items:center;gap:16px">
-      <div style="display:flex;align-items:center;gap:12px;font-family:var(--font-mono);font-size:9px;letter-spacing:0.13em;text-transform:uppercase;color:rgba(247,244,238,.55)">
-        <span style="color:var(--ink-light)">← Type</span><span style="color:rgba(247,244,238,.25)">·</span><span>Tap to shoot</span><span style="color:rgba(247,244,238,.25)">·</span><span style="color:var(--accent)">Speak ↗</span>
-      </div>
-      <button id="shutter-btn" style="width:74px;height:74px;border-radius:50%;border:3px solid var(--paper);background:transparent;display:flex;align-items:center;justify-content:center;animation:shutterPulse 2.4s ease-in-out infinite">
-        <div style="width:58px;height:58px;border-radius:50%;background:var(--paper)"></div>
-      </button>
+      <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.13em;text-transform:uppercase;color:rgba(247,244,238,.45)">Tap to open camera</div>
+      <label style="cursor:pointer">
+        <input type="file" accept="image/*" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px" onchange="A.photoChosen(this)">
+        <div style="width:74px;height:74px;border-radius:50%;border:3px solid var(--paper);background:transparent;display:flex;align-items:center;justify-content:center;animation:shutterPulse 2.4s ease-in-out infinite">
+          <div style="width:58px;height:58px;border-radius:50%;background:var(--paper)"></div>
+        </div>
+      </label>
     </div>
   </div>
 </div>`;
@@ -325,20 +342,30 @@ const A={
     <div style="display:flex;align-items:baseline;gap:7px">${this.phaseHTML('See',true)}</div>
     <div style="width:18px"></div>
   </div>
-  <div id="voice-gesture-area" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 30px 30px;background:var(--bg-ink);animation:voiceIn .42s cubic-bezier(.2,.7,.2,1) both">
-    <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--accent)">Voice · say it</div>
-    <div style="height:92px;display:flex;align-items:flex-end;justify-content:center;text-align:center;margin-top:16px">
-      ${listening?`<div style="font-family:var(--font-display);font-size:22px;line-height:1.25;color:var(--paper)">${this.s.voiceText}<span style="display:inline-block;width:2px;height:18px;background:var(--accent);margin-left:2px;vertical-align:-3px;animation:caret 1s step-end infinite"></span></div>`
-        :`<div style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(247,244,238,.5);line-height:1.9">Hold the dot.<br>Say what caught your eye.</div>`}
+  <div id="voice-gesture-area" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 34px 40px;background:var(--bg-ink);animation:voiceIn .42s cubic-bezier(.2,.7,.2,1) both">
+    <div style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.22em;text-transform:uppercase;color:var(--accent)">Voice · say it</div>
+    <div style="min-height:110px;display:flex;align-items:center;justify-content:center;text-align:center;margin-top:22px;width:100%">
+      ${listening?`<div style="font-family:var(--font-display);font-size:26px;line-height:1.3;color:var(--paper)">${this.s.voiceText||' '}<span style="display:inline-block;width:2px;height:22px;background:var(--accent);margin-left:3px;vertical-align:-4px;animation:caret 1s step-end infinite"></span></div>`
+        :`<div style="font-family:var(--font-sans);font-size:16px;font-weight:300;color:rgba(247,244,238,.45);line-height:1.7">Hold the dot.<br>Say what caught your eye.</div>`}
     </div>
-    <div style="height:54px;display:flex;align-items:center;justify-content:center;gap:4px;margin:18px 0 24px">${bars}</div>
-    <button id="voice-hold-btn" style="width:104px;height:104px;border-radius:50%;border:2px solid ${listening?'var(--accent)':'rgba(247,244,238,.4)'};background:${listening?'var(--accent)':'transparent'};display:flex;align-items:center;justify-content:center;transition:background .2s,border-color .2s;animation:${listening?'holdPulse 1.4s ease-out infinite':'none'};-webkit-user-select:none;user-select:none;touch-action:none">
-      <div style="width:18px;height:18px;border-radius:${listening?'3px':'50%'};background:${listening?'var(--paper)':'rgba(247,244,238,.55)'};transition:all .2s"></div>
+    <div style="height:60px;display:flex;align-items:center;justify-content:center;gap:5px;margin:24px 0 30px">${bars}</div>
+    <button id="voice-hold-btn" style="width:114px;height:114px;border-radius:50%;border:2px solid ${listening?'var(--accent)':'rgba(247,244,238,.4)'};background:${listening?'var(--accent)':'transparent'};display:flex;align-items:center;justify-content:center;transition:background .2s,border-color .2s;animation:${listening?'holdPulse 1.4s ease-out infinite':'none'};-webkit-user-select:none;user-select:none;touch-action:none">
+      <div style="width:20px;height:20px;border-radius:${listening?'3px':'50%'};background:${listening?'var(--paper)':'rgba(247,244,238,.55)'};transition:all .2s"></div>
     </button>
-    <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:${listening?'var(--accent)':'rgba(247,244,238,.6)'};margin-top:18px">${listening?'Listening — release to keep':'Hold to speak'}</div>
-    <button onclick="A.set({captureMode:'camera',voiceState:'idle',voiceText:''})" style="margin-top:24px;border:none;background:none;font-family:var(--font-mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(247,244,238,.45);padding:6px">↙ Swipe back to camera</button>
+    <div style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:${listening?'var(--accent)':'rgba(247,244,238,.55)'};margin-top:22px">${listening?'Listening — release to keep':'Hold to speak'}</div>
+    <button onclick="A.set({captureMode:'camera',voiceState:'idle',voiceText:''})" style="margin-top:30px;border:none;background:none;font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(247,244,238,.35);padding:8px">← Back to camera</button>
   </div>
 </div>`;
+  },
+
+  photoChosen(input){
+    const file=input.files&&input.files[0];
+    if(!file)return;
+    const reader=new FileReader();
+    reader.onload=e=>{
+      this.set({draftPhoto:e.target.result,draftInsight:'',draftThemeId:null,screen:'captureInsight'});
+    };
+    reader.readAsDataURL(file);
   },
 
   screenInsight(){
@@ -374,38 +401,50 @@ const A={
   },
 
   screenThemes(){
-    const cards=this.s.themes.map((t,i)=>{
+    const analyzing=this.s.themesLoading;
+    const msg=this.s.themesMessage;
+    const cards=(this.s.themes||[]).map((t,i)=>{
       const pct=Math.min(100,Math.round(t.count/t.threshold*100));
       const ready=t.count>=t.threshold;
       const border=ready?'var(--accent)':'var(--border)';
       const bg=ready?'rgba(196,80,10,0.10)':'rgba(247,244,238,.04)';
       const barColor=ready?'var(--accent)':'var(--ink)';
       const statusColor=ready?'var(--accent)':'var(--ink-light)';
-      const statusLabel=ready?'Ready to graduate':'Gathering';
-      const action=ready
-        ?`A.set({activeThemeId:'${t.id}',screen:'graduation'})`
-        :`A.toast('"${t.name}" still gathering — ${t.count} of ${t.threshold}')`;
-      return`<button onclick="${action}" style="text-align:left;border:1px solid ${border};background:${bg};padding:18px;display:flex;flex-direction:column;gap:13px;animation:frameIn .5s ease both;animation-delay:${i*70}ms;width:100%">
+      const statusLabel=ready?'Ready to build':'Gathering';
+      return`<div style="text-align:left;border:1px solid ${border};background:${bg};padding:18px;display:flex;flex-direction:column;gap:13px;animation:frameIn .5s ease both;animation-delay:${i*70}ms">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
     <div style="font-family:var(--font-display);font-size:19px;line-height:1.15;color:var(--ink)">${t.name}</div>
     <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.06em;color:${barColor};white-space:nowrap;padding-top:3px">${t.count} / ${t.threshold}</div>
   </div>
-  <div style="font-size:12px;line-height:1.5;color:var(--ink-mid)">${t.blurb}</div>
+  <div style="font-size:13px;line-height:1.55;color:var(--ink-mid)">${t.blurb}</div>
   <div style="height:6px;background:var(--bg-dark);overflow:hidden"><div style="height:100%;width:${pct}%;background:${barColor};transform-origin:left;animation:barGrow .8s cubic-bezier(.2,.7,.2,1) both"></div></div>
-  <div style="display:flex;align-items:center;justify-content:space-between">
-    <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:${statusColor}">${statusLabel}</div>
-    ${ready?`<div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:6px"><span style="width:5px;height:5px;border-radius:50%;background:var(--accent);animation:blink 1.6s ease-in-out infinite"></span>Graduate →</div>`:''}
-  </div>
-</button>`;
+  <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:${statusColor}">${statusLabel} · ${t.count} capture${t.count===1?'':'s'}</div>
+</div>`;
     }).join('');
+
+    const empty=!analyzing&&!cards&&!msg?`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 34px;text-align:center;gap:16px">
+  <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:var(--accent)">Waiting</div>
+  <div style="font-family:var(--font-display);font-size:26px;line-height:1.15;color:var(--ink)">Add 3+ captures<br>to find patterns.</div>
+  <div style="font-size:13px;line-height:1.7;color:var(--ink-light);max-width:26ch">Distill will surface what keeps showing up.</div>
+</div>`:'';
+
     return`<div style="height:100%;display:flex;flex-direction:column;animation:screenIn .4s ease both">
   <div style="padding:54px 22px 14px;border-bottom:1px solid var(--border);background:var(--bg);position:relative;overflow:hidden">
     <div aria-hidden="true" style="position:absolute;right:-24px;bottom:-4px;width:150px;height:1.5px;background:linear-gradient(90deg,transparent,var(--accent));transform:rotate(-26deg);transform-origin:right center;pointer-events:none"></div>
     <div style="display:flex;align-items:baseline;gap:7px">${this.phaseHTML('Think',false)}</div>
-    <div style="font-family:var(--font-display);font-size:30px;line-height:1;color:var(--ink);margin-top:5px">Patterns forming</div>
-    <div style="font-size:12px;line-height:1.6;color:var(--ink-mid);margin-top:8px;max-width:36ch">Recurrence builds quietly. Cross the threshold and it graduates.</div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:5px">
+      <div style="font-family:var(--font-display);font-size:28px;line-height:1;color:var(--ink)">Patterns forming</div>
+      <button onclick="A.analyzeThemes()" style="border:none;background:none;font-family:var(--font-mono);font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:var(--accent);padding:0;flex-shrink:0;margin-left:12px">${analyzing?'Thinking…':'Analyze ↻'}</button>
+    </div>
   </div>
-  <div style="flex:1;overflow:auto;padding:18px 22px 104px;display:flex;flex-direction:column;gap:14px">${cards}</div>
+  <div style="flex:1;overflow:auto;padding:18px 22px 104px;display:flex;flex-direction:column;gap:14px">
+    ${analyzing?`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 34px;text-align:center;gap:16px">
+      <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:var(--accent);animation:blink 1.4s ease-in-out infinite">Distill is thinking…</div>
+      <div style="font-size:13px;line-height:1.7;color:var(--ink-light);max-width:28ch">Reading your captures and looking for what keeps coming back.</div>
+    </div>`:''}
+    ${msg&&!analyzing?`<div style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.12em;color:var(--ink-light);text-align:center;padding:40px 20px">${msg}</div>`:''}
+    ${cards}${empty}
+  </div>
   ${this.tabBarHTML('themes')}
   ${this.s.toast?`<div style="position:absolute;left:50%;bottom:108px;transform:translateX(-50%);background:var(--accent);color:var(--paper);font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;padding:11px 18px;white-space:nowrap;animation:toastIn .3s ease both;z-index:80;box-shadow:0 8px 24px rgba(15,15,13,.28)">${this.s.toast}</div>`:''}
 </div>`;
@@ -571,7 +610,7 @@ const A={
     <div style="width:54px;height:54px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(196,80,10,.32)"><div style="width:22px;height:22px;border-radius:50%;border:2px solid var(--paper)"></div></div>
     <div style="font-family:var(--font-mono);font-size:8px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink)">Capture</div>
   </button>
-  <button onclick="A.set({screen:'themes',toast:null})" style="border:none;background:none;display:flex;flex-direction:column;align-items:center;gap:7px;padding:0">
+  <button onclick="A.set({screen:'themes',toast:null});if(A.s.captures.length>=3)A.analyzeThemes();" style="border:none;background:none;display:flex;flex-direction:column;align-items:center;gap:7px;padding:0">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;width:16px">${themGrid}</div>
     <div style="font-family:var(--font-mono);font-size:8px;letter-spacing:0.16em;text-transform:uppercase;color:${themColor}">Themes</div>
   </button>
