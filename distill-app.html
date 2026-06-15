@@ -310,8 +310,10 @@ const A={
     clearInterval(this._viv);
     this.s={screen:'feed',captureMode:'camera',voiceState:'idle',voiceText:'',
       draftPhoto:null,draftInsight:'',draftThemeId:null,
-      activeThemeId:null,cameraFailed:false,toast:null,
-      buildStarted:false,buildTargetLabel:'',captures:[],themes:[]};
+      activeThemeId:null,pressureData:null,pressureLoading:false,
+      killConfirm:false,cameraFailed:false,toast:null,
+      themesLoading:false,themesMessage:null,
+      buildStarted:false,buildTargetLabel:'',captures:[],themes:[],heldBriefs:this.s.heldBriefs||[]};
     this.render();
   },
 
@@ -333,25 +335,6 @@ const A={
   },
 
   // ── Screens ──────────────────────────────────────────────────────────────
-  screenOnboarding(){
-    return`<div style="height:100%;display:flex;flex-direction:column;padding:96px 34px 40px;background:var(--bg);position:relative;overflow:hidden;animation:screenIn .4s ease both">
-  <div aria-hidden="true" style="position:absolute;left:-14%;top:58%;width:130%;height:2px;background:linear-gradient(90deg,transparent,var(--accent) 20%,var(--accent) 80%,transparent);transform:rotate(-24deg);pointer-events:none"></div>
-  <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.32em;text-transform:uppercase;color:var(--accent);animation:obWord .6s ease both">An Ingenious Soul product</div>
-  <div style="font-family:var(--font-display);font-size:58px;line-height:1;color:var(--ink);margin:18px 0 6px;animation:obWord .6s ease both .1s">Distill<span style="color:var(--accent)">.</span></div>
-  <div style="font-size:14px;line-height:1.7;color:var(--ink-mid);max-width:30ch;animation:obWord .6s ease both .2s">Turn what you notice in the world into something you can build.</div>
-  <div style="margin-top:auto;display:flex;flex-direction:column;gap:2px">
-    <div style="font-family:var(--font-display);font-size:40px;line-height:1.12;color:var(--ink);animation:obWord .7s ease both .35s">See.</div>
-    <div style="font-family:var(--font-display);font-style:italic;font-size:40px;line-height:1.12;color:var(--accent);animation:obWord .7s ease both .7s">Think.</div>
-    <div style="font-family:var(--font-display);font-size:40px;line-height:1.12;color:var(--ink);animation:obWord .7s ease both 1.05s">Build.</div>
-    <div style="font-family:var(--font-display);font-style:italic;font-size:40px;line-height:1.12;color:var(--ink-light);animation:obWord .7s ease both 1.4s">Repeat.</div>
-  </div>
-  <div style="margin-top:34px;animation:obWord .7s ease both 1.75s">
-    <button onclick="A.set({screen:'feed'})" style="width:100%;border:none;background:var(--accent);color:var(--paper);font-family:var(--font-mono);font-size:12px;letter-spacing:0.14em;text-transform:uppercase;padding:18px;display:flex;align-items:center;justify-content:center;gap:10px">Open the loop <span style="font-family:var(--font-sans)">→</span></button>
-    <div style="text-align:center;font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-light);margin-top:14px">Pour in the friction. Let the pattern clarify.</div>
-  </div>
-</div>`;
-  },
-
   screenOnboarding(){
     return`<div style="height:100%;display:flex;flex-direction:column;background:var(--bg-ink);animation:screenIn .5s ease both">
   <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:48px 36px 36px">

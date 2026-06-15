@@ -12,6 +12,19 @@ const Anthropic = require('@anthropic-ai/sdk');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Simple in-memory AI rate limiter — 30 calls per user per day
+const _aiCalls = new Map();
+function checkAILimit(userId) {
+  const now = Date.now();
+  const dayMs = 86_400_000;
+  const entry = _aiCalls.get(userId) || { count: 0, reset: now + dayMs };
+  if (now > entry.reset) { entry.count = 0; entry.reset = now + dayMs; }
+  if (entry.count >= 30) return false;
+  entry.count++;
+  _aiCalls.set(userId, entry);
+  return true;
+}
+
 app.use(express.json());
 
 // Better Auth handler — must come before static/other routes
@@ -90,6 +103,10 @@ app.post('/api/themes/analyze', async (req, res) => {
   try {
     const session = await auth.api.getSession({ headers: req.headers });
     if (!session) return res.status(401).json({ error: 'Unauthorized' });
+
+    if (!checkAILimit(session.user.id)) {
+      return res.status(429).json({ error: 'Daily AI limit reached — come back tomorrow.' });
+    }
 
     const rows = await db
       .select()
@@ -237,6 +254,10 @@ app.post('/api/themes/pressure', async (req, res) => {
     const { themeName, themeBlurb, captures } = req.body;
     if (!themeName || !captures || !captures.length) {
       return res.status(400).json({ error: 'Missing theme data' });
+    }
+
+    if (!checkAILimit(session.user.id)) {
+      return res.status(429).json({ error: 'Daily AI limit reached — come back tomorrow.' });
     }
 
     const client = new Anthropic();
