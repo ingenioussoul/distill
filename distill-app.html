@@ -373,10 +373,12 @@ const A={
       </div>
       <div aria-hidden="true" style="position:absolute;right:-46px;bottom:62px;width:170px;height:1px;background:linear-gradient(90deg,transparent,var(--accent));transform:rotate(-45deg);transform-origin:right center;pointer-events:none"></div>
       <button onclick="A.set({captureMode:'voice',voiceState:'idle',voiceText:''})" style="position:absolute;right:16px;bottom:16px;display:flex;align-items:center;gap:7px;background:rgba(15,15,13,.62);border:1px solid var(--accent);color:var(--accent);font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;padding:10px 13px;backdrop-filter:blur(4px)">Hold to speak <span style="font-size:14px;line-height:1;animation:nudgeDiag 1.8s ease-in-out infinite">↗</span></button>
+      <div aria-hidden="true" style="position:absolute;left:-46px;bottom:62px;width:170px;height:1px;background:linear-gradient(270deg,transparent,var(--accent));transform:rotate(45deg);transform-origin:left center;pointer-events:none"></div>
+      <button onclick="A.set({screen:'captureInsight',draftPhoto:null,draftInsight:'',draftThemeId:null})" style="position:absolute;left:16px;bottom:16px;display:flex;align-items:center;gap:7px;background:rgba(15,15,13,.62);border:1px solid rgba(247,244,238,.35);color:rgba(247,244,238,.7);font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;padding:10px 13px;backdrop-filter:blur(4px)"><span style="font-size:14px;line-height:1;transform:scaleX(-1);display:inline-block;animation:nudgeDiag 1.8s ease-in-out infinite">↗</span> Hold to type</button>
     </div>
     <div style="padding:24px 22px 34px;background:var(--bg-ink);display:flex;flex-direction:column;align-items:center;gap:16px">
       <div style="display:flex;align-items:center;gap:12px;font-family:var(--font-mono);font-size:9px;letter-spacing:0.13em;text-transform:uppercase;color:rgba(247,244,238,.55)">
-        <span>Tap to shoot</span><span style="color:rgba(247,244,238,.25)">·</span><span style="color:var(--accent)">Swipe ↗ to speak</span>
+        <span style="color:var(--ink-light)">← Type</span><span style="color:rgba(247,244,238,.25)">·</span><span>Tap to shoot</span><span style="color:rgba(247,244,238,.25)">·</span><span style="color:var(--accent)">Speak ↗</span>
       </div>
       <button id="shutter-btn" style="width:74px;height:74px;border-radius:50%;border:3px solid var(--paper);background:transparent;display:flex;align-items:center;justify-content:center;animation:shutterPulse 2.4s ease-in-out infinite">
         <div style="width:58px;height:58px;border-radius:50%;background:var(--paper)"></div>
