@@ -242,6 +242,9 @@ const A={
   async holdTheme(){
     const at=this.activeTheme();
     const pd=this.s.pressureData||{};
+    // Navigate immediately — save happens in background
+    this.set({screen:'themes',killConfirm:false,pressureData:null});
+    this.toast('Held — saved to your build screen');
     try{
       const r=await fetch('/api/briefs',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({
         themeName:at.name,themeBlurb:at.blurb,
@@ -249,12 +252,8 @@ const A={
         frictionVerdict:pd.frictionVerdict||null,stack:pd.stack||[],
       })});
       const saved=await r.json();
-      this.set(s=>({heldBriefs:[saved,...s.heldBriefs],screen:'themes',killConfirm:false}));
-      this.toast('Held — it keeps waiting quietly');
-    }catch(e){
-      this.set({screen:'themes',killConfirm:false});
-      this.toast('Held');
-    }
+      this.set(s=>({heldBriefs:[saved,...s.heldBriefs]}));
+    }catch(e){}
   },
 
   async killTheme(){
