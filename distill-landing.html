@@ -36,6 +36,9 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font-sans);font-wei
 @keyframes nudgeDiag{0%,100%{transform:translate(0,0)}50%{transform:translate(4px,-4px)}}
 @keyframes screenIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes burst{0%{transform:scale(.4);opacity:.5}100%{transform:scale(2.4);opacity:0}}
+@keyframes barGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+@keyframes drawUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
 
 /* ── NAV ─────────────────────────────────────────────────────── */
@@ -56,16 +59,14 @@ nav{
 .nav-link{font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-mid)}
 .nav-cta{
   font-family:var(--font-mono);font-size:10px;letter-spacing:0.13em;text-transform:uppercase;
-  color:var(--paper);background:var(--ink);padding:10px 16px;white-space:nowrap;
+  color:var(--paper);background:var(--accent);padding:10px 16px;white-space:nowrap;
 }
-/* hide nav links on mobile, keep only CTA */
 @media(max-width:640px){.nav-link{display:none}}
 
 /* ── HERO ────────────────────────────────────────────────────── */
 .hero{position:relative;z-index:2;overflow:hidden}
 .hero-inner{max-width:1240px;margin:0 auto;padding:48px 20px 60px}
 
-/* Mobile: single column, copy → phone */
 .hero-grid{display:flex;flex-direction:column;gap:48px;align-items:center}
 
 .hero-eyebrow{
@@ -129,7 +130,6 @@ nav{
   font-family:var(--font-sans);font-weight:300;color:var(--ink);
 }
 
-/* Desktop: side by side */
 @media(min-width:768px){
   .hero-inner{padding:70px 48px 90px;position:relative}
   .hero-grid{flex-direction:row;align-items:center;gap:30px}
@@ -142,7 +142,6 @@ nav{
   .hero-phone-screen{border-radius:37px;width:314px;height:652px}
   .hero-dynamic-island{width:110px;height:30px}
   .try-tag{right:8px;left:auto}
-  /* diagonal red line — desktop only */
   .hero-line{
     display:block;position:absolute;left:2%;bottom:160px;width:104%;height:2.5px;
     background:linear-gradient(90deg,transparent,var(--accent) 18%,var(--accent) 82%,transparent);
@@ -169,7 +168,6 @@ nav{
 .how-inner{max-width:1240px;margin:0 auto;padding:56px 20px}
 @media(min-width:768px){.how-inner{padding:78px 48px}}
 
-/* Mobile: stacked */
 .how-grid{display:flex;flex-direction:column;border:1px solid var(--border)}
 .how-cell{padding:24px 20px}
 .how-cell+.how-cell{border-top:1px solid var(--border)}
@@ -177,7 +175,6 @@ nav{
 .how-cell-title{font-family:var(--font-display);font-size:20px;line-height:1.1;color:var(--ink);margin:12px 0 8px}
 .how-cell-body{font-size:13.5px;line-height:1.6;color:var(--ink-mid)}
 .how-cell-accent{background:rgba(196,80,10,.04)}
-/* Desktop: 3-col */
 @media(min-width:768px){
   .how-grid{flex-direction:row}
   .how-cell{padding:30px 26px;flex:1}
@@ -189,7 +186,6 @@ nav{
 .loop-inner{max-width:1240px;margin:0 auto;padding:56px 20px}
 @media(min-width:768px){.loop-inner{padding:78px 48px}}
 
-/* Mobile: 2×2 grid */
 .loop-grid{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--border);background:var(--bg)}
 .loop-cell{padding:22px 18px;display:flex;flex-direction:column;gap:9px;min-height:160px;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
 .loop-cell:nth-child(2n){border-right:none}
@@ -199,7 +195,6 @@ nav{
 .loop-cell-title-accent{font-family:var(--font-display);font-style:italic;font-size:26px;line-height:1;color:var(--accent)}
 .loop-cell-body{font-size:12px;line-height:1.6;color:var(--ink-mid)}
 .loop-footnote{font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-light);margin-top:16px}
-/* Desktop: 4-col */
 @media(min-width:768px){
   .loop-grid{grid-template-columns:repeat(4,1fr)}
   .loop-cell{padding:30px 24px;min-height:210px;border-bottom:none}
@@ -229,24 +224,18 @@ nav{
   color:var(--accent);margin:14px 0 0;
 }
 .cta-body{font-size:15px;line-height:1.7;color:rgba(247,244,238,.45);margin:14px 0 28px;max-width:42ch}
-/* Mobile: stacked email form */
-.email-wrap{display:flex;flex-direction:column;gap:10px}
-.email-form{display:flex;align-items:stretch;border:1px solid rgba(247,244,238,.28)}
-.email-input{
-  border:none;background:transparent;color:var(--paper);
-  font-family:var(--font-sans);font-size:14px;padding:15px 16px;
-  flex:1;min-width:0;outline:none;
+.cta-actions{display:flex;flex-direction:column;gap:12px}
+.cta-btn-primary{
+  font-family:var(--font-mono);font-size:12px;letter-spacing:0.13em;text-transform:uppercase;
+  color:var(--paper);background:var(--accent);padding:16px 28px;
+  display:inline-flex;align-items:center;gap:9px;
 }
-.email-input::placeholder{color:rgba(247,244,238,.3)}
-.email-btn{
-  border:none;background:var(--accent);color:var(--paper);
+.cta-btn-secondary{
   font-family:var(--font-mono);font-size:11px;letter-spacing:0.13em;text-transform:uppercase;
-  padding:0 20px;white-space:nowrap;
+  color:rgba(247,244,238,.45);padding:4px 0;
 }
-.email-note{font-family:var(--font-mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(247,244,238,.3)}
-@media(min-width:640px){
-  .email-wrap{flex-direction:row;align-items:center;gap:16px}
-}
+@media(min-width:640px){.cta-actions{flex-direction:row;align-items:center}}
+.cta-note{font-family:var(--font-mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(247,244,238,.25);margin-top:20px}
 
 /* ── FOOTER ─────────────────────────────────────────────────── */
 footer{background:var(--bg-ink);border-top:1px solid rgba(247,244,238,.12)}
@@ -275,7 +264,7 @@ footer{background:var(--bg-ink);border-top:1px solid rgba(247,244,238,.12)}
       <a href="#how" class="nav-link">How it works</a>
       <a href="#loop" class="nav-link">The loop</a>
       <a href="/app" class="nav-link">Open app</a>
-      <a href="/app" class="nav-cta">Open app →</a>
+      <a href="/app" class="nav-cta">Start → $9/mo</a>
     </div>
   </div>
 </nav>
@@ -289,10 +278,10 @@ footer{background:var(--bg-ink);border-top:1px solid rgba(247,244,238,.12)}
       <div class="hero-copy">
         <div class="hero-eyebrow">See · Think · Build · Repeat</div>
         <h1 class="hero-h1">Every friction you feel is a product you haven't <span style="font-style:italic;color:var(--accent)">built</span> yet.</h1>
-        <p class="hero-body">Distill catches what stops you mid-day and lets the pattern clarify. Point the camera. Swipe to speak. It hands you back something you can ship.</p>
+        <p class="hero-body">Point the camera. Swipe to speak. Distill watches the patterns — and when the same friction shows up enough times, it builds you a brief, a pressure test, and a prompt ready to hand to Claude Code.</p>
         <div class="hero-ctas">
-          <a href="/app" class="hero-cta-primary">Open app <span style="font-family:var(--font-sans)">→</span></a>
-          <a href="#how" class="hero-cta-secondary">See the gesture</a>
+          <a href="/app" class="hero-cta-primary">Start noticing <span style="font-family:var(--font-sans)">→</span></a>
+          <a href="#how" class="hero-cta-secondary">See how it works</a>
         </div>
         <div class="hero-hint">
           <div class="hero-hint-dot"></div>
@@ -339,7 +328,7 @@ footer{background:var(--bg-ink);border-top:1px solid rgba(247,244,238,.12)}
       <div class="how-cell">
         <div class="how-cell-num" style="color:var(--ink-light)">03</div>
         <div class="how-cell-title">Type — if you must</div>
-        <div class="how-cell-body">Writing is the fallback, never the front door. One line to confirm what you saw or said. Then it's gone from your head and into the pattern.</div>
+        <div class="how-cell-body">Writing is the fallback, never the front door. One line to name what you saw or said. Then it's out of your head and into the pattern.</div>
       </div>
     </div>
   </div>
@@ -357,22 +346,22 @@ footer{background:var(--bg-ink);border-top:1px solid rgba(247,244,238,.12)}
       <div class="loop-cell">
         <div class="loop-cell-kicker">01 — See</div>
         <div class="loop-cell-title-plain">See.</div>
-        <div class="loop-cell-body">Catch the friction the second you feel it. Photo or voice, one gesture.</div>
+        <div class="loop-cell-body">Catch the friction the second you feel it. Photo, voice, or one line. Faster than forgetting.</div>
       </div>
       <div class="loop-cell">
         <div class="loop-cell-kicker">02 — Think</div>
         <div class="loop-cell-title-accent">Think.</div>
-        <div class="loop-cell-body">Captures cluster into patterns. Recurrence builds quietly until one graduates.</div>
+        <div class="loop-cell-body">AI watches the feed and groups captures into patterns. When the same friction recurs enough, it graduates.</div>
       </div>
       <div class="loop-cell">
         <div class="loop-cell-kicker">03 — Build</div>
         <div class="loop-cell-title-plain">Build.</div>
-        <div class="loop-cell-body">A confirmed pattern becomes a brief — then a real build on the Stack.</div>
+        <div class="loop-cell-body">A graduated pattern gets a pressure test — who it's for, the smallest version, is the friction real. Then a brief, ready to hand to Claude Code or scaffold on Ingenious Stack.</div>
       </div>
       <div class="loop-cell">
         <div class="loop-cell-kicker">04 — Repeat</div>
         <div class="loop-cell-title-accent">Repeat.</div>
-        <div class="loop-cell-body">What you ship changes what you notice next. The loop tightens.</div>
+        <div class="loop-cell-body">What you ship changes what you notice next. The loop tightens. The ideas get sharper.</div>
       </div>
     </div>
     <div class="loop-footnote">No feed. No likes. No streaks. Just the loop.</div>
@@ -383,17 +372,15 @@ footer{background:var(--bg-ink);border-top:1px solid rgba(247,244,238,.12)}
 <div id="access">
   <div class="cta-line" aria-hidden="true"></div>
   <div class="cta-inner">
-    <div class="cta-eyebrow">Early access</div>
-    <h2 class="cta-h2">Stop hoarding ideas. Start <span style="font-style:italic;color:var(--accent)">building.</span></h2>
-    <div class="cta-price">$9 / month</div>
-    <p class="cta-body">Distill is in private dogfooding — client zero is its own maker. Get in line for the first build.</p>
-    <div class="email-wrap">
-      <div class="email-form">
-        <input id="email-input" class="email-input" placeholder="you@where-you-build.com" type="email">
-        <button id="join-btn" class="email-btn">Join →</button>
-      </div>
-      <div id="email-note" class="email-note">One-time. No spam. No feed.</div>
+    <div class="cta-eyebrow">Live now</div>
+    <h2 class="cta-h2">Stop noticing. Start <span style="font-style:italic;color:var(--accent)">building.</span></h2>
+    <div class="cta-price">$9 / month · cancel any time</div>
+    <p class="cta-body">Sign in with your email. The loop starts the moment you make your first capture.</p>
+    <div class="cta-actions">
+      <a href="/app" class="cta-btn-primary">Open Distill <span style="font-family:var(--font-sans)">→</span></a>
+      <span class="cta-btn-secondary">Works in any browser · no app store</span>
     </div>
+    <div class="cta-note">Magic link sign-in · no password · cancel any time</div>
   </div>
 </div>
 
@@ -411,10 +398,15 @@ footer{background:var(--bg-ink);border-top:1px solid rgba(247,244,238,.12)}
 <script>
 // ─── Mini app ───────────────────────────────────────────────────────────────
 const M={
-  s:{mode:'camera',voiceState:'idle',voiceText:'',done:false,capturedLine:'',via:''},
+  s:{mode:'camera',voiceState:'idle',voiceText:'',done:false,capturedLine:'',via:'',phase:'capture'},
   _viv:null,
   _voiceFull:'A spinner with no end — am I frozen, or thinking?',
   _photoLine:'A door labelled PUSH that only pulls',
+  _demoThemes:[
+    {name:'Unexplained Rejection',pct:67,count:2,ready:false},
+    {name:'Lost Information',pct:100,count:3,ready:true},
+    {name:'Endless Loading States',pct:33,count:1,ready:false},
+  ],
 
   set(partial){
     this.s={...this.s,...(typeof partial==='function'?partial(this.s):partial)};
@@ -436,6 +428,8 @@ const M={
     const root=document.getElementById('mini-app');
     if(!root)return;
     const s=this.s;
+    if(s.phase==='patterns'){root.innerHTML=this.screenPatterns();return;}
+    if(s.phase==='brief'){root.innerHTML=this.screenBrief();return;}
     if(s.done){root.innerHTML=this.screenDone();this._attachDone();return;}
     if(s.mode==='camera'){root.innerHTML=this.screenCamera();this._attachCamera();return;}
     if(s.mode==='type'){root.innerHTML=this.screenType();this._attachType();return;}
@@ -539,10 +533,76 @@ const M={
   </div>
   <div style="font-family:var(--font-mono);font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-light);margin-top:18px">Captured · via ${this.s.via}</div>
   <div style="font-family:var(--font-display);font-size:20px;line-height:1.2;color:var(--ink);margin-top:8px">${this.s.capturedLine||'Something felt off, and I noticed'}</div>
-  <div style="font-size:12px;line-height:1.6;color:var(--ink-mid);margin-top:12px;max-width:28ch">Distill files it into a pattern. Enough of these and it graduates — and builds the fix.</div>
+  <div style="font-size:12px;line-height:1.6;color:var(--ink-mid);margin-top:12px;max-width:28ch">Distill files it into the pattern. Enough of these and it graduates into a build brief.</div>
   <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px">
-    <a href="#access" style="text-align:center;font-family:var(--font-mono);font-size:10px;letter-spacing:0.13em;text-transform:uppercase;color:var(--paper);background:var(--ink);padding:13px;display:block">See the whole loop →</a>
+    <button id="mini-think" style="text-align:center;font-family:var(--font-mono);font-size:10px;letter-spacing:0.13em;text-transform:uppercase;color:var(--paper);background:var(--ink);border:none;padding:13px;display:block;width:100%">See the patterns →</button>
     <button id="mini-again" style="border:1px solid var(--border);background:transparent;color:var(--ink-mid);font-family:var(--font-mono);font-size:10px;letter-spacing:0.13em;text-transform:uppercase;padding:12px;width:100%">↻ Capture another</button>
+  </div>
+</div>`;
+  },
+
+  screenPatterns(){
+    const themes=this._demoThemes;
+    const cards=themes.map((t,i)=>{
+      const ready=t.ready;
+      const border=ready?'var(--accent)':'rgba(247,244,238,.14)';
+      const bg=ready?'rgba(196,80,10,0.12)':'transparent';
+      const barColor=ready?'var(--accent)':'rgba(247,244,238,.35)';
+      const statusColor=ready?'var(--accent)':'rgba(247,244,238,.4)';
+      return`<div onclick="${ready?'M.set({phase:\'brief\'})':''}" style="border:1px solid ${border};background:${bg};padding:12px;display:flex;flex-direction:column;gap:8px;${ready?'cursor:pointer':''}">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+    <div style="font-family:var(--font-display);font-size:13px;line-height:1.2;color:var(--ink)">${t.name}</div>
+    <div style="font-family:var(--font-mono);font-size:9px;color:${barColor};white-space:nowrap;padding-top:1px">${t.count} / 3</div>
+  </div>
+  <div style="height:4px;background:rgba(247,244,238,.1);overflow:hidden"><div style="height:100%;width:${t.pct}%;background:${barColor};transform-origin:left"></div></div>
+  <div style="font-family:var(--font-mono);font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:${statusColor}">${ready?'Ready to build':'Gathering'} · ${t.count} capture${t.count===1?'':'s'}</div>
+</div>`;
+    }).join('');
+    return`<div style="height:100%;display:flex;flex-direction:column;background:var(--bg-ink);animation:screenIn .4s ease both">
+  <div style="padding:42px 18px 10px;border-bottom:1px solid rgba(247,244,238,.12)">
+    <div style="font-family:var(--font-mono);font-size:8px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(247,244,238,.5)">Think</div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:4px">
+      <div style="font-family:var(--font-display);font-size:18px;color:var(--ink)">Patterns forming</div>
+      <div style="font-family:var(--font-mono);font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:var(--accent)">AI ↻</div>
+    </div>
+  </div>
+  <div style="flex:1;overflow:auto;padding:12px 18px 20px;display:flex;flex-direction:column;gap:10px">
+    ${cards}
+    <div style="font-family:var(--font-mono);font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(247,244,238,.35);text-align:center;margin-top:4px">Tap a ready pattern to build it</div>
+  </div>
+  <div style="padding:10px 18px 22px;border-top:1px solid rgba(247,244,238,.12)">
+    <button onclick="M.set({phase:'capture',done:false,mode:'camera'})" style="width:100%;border:1px solid rgba(247,244,238,.2);background:transparent;color:rgba(247,244,238,.6);font-family:var(--font-mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;padding:11px">← Back to capture</button>
+  </div>
+</div>`;
+  },
+
+  screenBrief(){
+    return`<div style="height:100%;display:flex;flex-direction:column;background:var(--bg);animation:screenIn .4s ease both">
+  <div style="padding:42px 18px 10px;border-bottom:1px solid var(--border)">
+    <div style="font-family:var(--font-mono);font-size:8px;letter-spacing:0.22em;text-transform:uppercase;color:var(--ink-light)">Build · candidate → buildable</div>
+    <div style="font-family:var(--font-display);font-size:20px;line-height:1.1;color:var(--ink);margin-top:4px">Lost Information<span style="color:var(--accent)">.</span></div>
+  </div>
+  <div style="flex:1;overflow:auto;padding:14px 18px 20px">
+    <div style="display:flex;flex-direction:column">
+      <div style="padding:10px 0;border-top:1px solid var(--border)">
+        <div style="font-family:var(--font-mono);font-size:7px;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent)">Who it's for</div>
+        <div style="font-size:11px;line-height:1.5;color:var(--ink);margin-top:4px">Small business owners who can't locate receipts at tax time.</div>
+      </div>
+      <div style="padding:10px 0;border-top:1px solid var(--border)">
+        <div style="font-family:var(--font-mono);font-size:7px;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent)">Smallest version</div>
+        <div style="font-size:11px;line-height:1.5;color:var(--ink);margin-top:4px">A receipt inbox that extracts vendor, amount, and date from photos — searchable in seconds.</div>
+      </div>
+      <div style="padding:10px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+        <div style="font-family:var(--font-mono);font-size:7px;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent)">The stack</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px">
+          ${['Express 5','Better Auth','Drizzle · Neon','OCR.space'].map((s,i)=>`<span style="font-family:var(--font-mono);font-size:8px;color:${i===3?'#E8A87C':'var(--ink-light)'};border:1px solid ${i===3?'rgba(232,168,124,0.5)':'var(--border)'};padding:3px 6px">${s}</span>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:14px;display:flex;flex-direction:column;gap:7px">
+      <button style="width:100%;border:none;background:var(--accent);color:var(--paper);font-family:var(--font-mono);font-size:9px;letter-spacing:0.13em;text-transform:uppercase;padding:12px">Hand to Claude Code →</button>
+      <button onclick="M.set({phase:'capture',done:false,mode:'camera'})" style="width:100%;border:1px solid var(--border);background:transparent;color:var(--ink-mid);font-family:var(--font-mono);font-size:9px;letter-spacing:0.13em;text-transform:uppercase;padding:11px">Repeat the loop ↻</button>
+    </div>
   </div>
 </div>`;
   },
@@ -590,20 +650,12 @@ const M={
     });
   },
   _attachDone(){
+    const think=document.getElementById('mini-think');
+    if(think)think.addEventListener('click',()=>this.set({phase:'patterns'}));
     const btn=document.getElementById('mini-again');
     if(btn)btn.addEventListener('click',()=>this.set({done:false,mode:'camera',voiceState:'idle',voiceText:'',capturedLine:'',via:''}));
   }
 };
-
-// ─── Email capture ──────────────────────────────────────────────────────────
-document.getElementById('join-btn').addEventListener('click',()=>{
-  const inp=document.getElementById('email-input');
-  if(!(inp.value||'').trim())return;
-  document.getElementById('join-btn').textContent="You're in ✓";
-  document.getElementById('email-note').textContent="We'll reach out when the first build is ready.";
-  document.getElementById('email-note').style.color='rgba(196,80,10,.8)';
-  inp.disabled=true;
-});
 
 M.render();
 </script>
