@@ -57,6 +57,7 @@ input{-webkit-appearance:none;appearance:none}
   --ink-light:rgba(247,244,238,.55);--paper:#F7F4EE;--accent:#C4500A;
   --sienna:#9b4f2a;--ochre:#c4823a;--code-bg:#1A1916;--code-text:#E8E4DC;
   --code-comment:#5A5750;--code-key:#C4823A;--code-val:#8CB88A;--bg-ink:#0F0F0D;
+  --danger:#c0392b;--danger-text:#ffffff;
   --font-display:'DM Serif Display',Georgia,serif;
   --font-sans:'DM Sans',sans-serif;--font-mono:'DM Mono',monospace;
   font-family:var(--font-sans);font-weight:300;color:var(--ink);
@@ -75,6 +76,7 @@ const A={
     draftPhoto:null,draftInsight:'',draftThemeId:null,
     activeThemeId:null,pressureData:null,pressureLoading:false,killConfirm:false,cameraFailed:false,toast:null,
     buildStarted:false,buildTargetLabel:'',
+    launchData:null,launchLoading:false,
     captures:[],themes:[],heldBriefs:[],
   },
   stream:null,videoEl:null,_t:null,_viv:null,
@@ -246,6 +248,47 @@ const A={
     window.location.reload();
   },
 
+  async generateLaunch(){
+    const at=this.activeTheme();
+    const pd=this.s.pressureData||{};
+    if(!at.name)return;
+    this.set({launchLoading:true,launchData:null,screen:'launch'});
+    try{
+      const r=await fetch('/api/build/launch',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        themeName:at.name,themeBlurb:at.blurb,
+        forWho:pd.forWho||null,smallestVersion:pd.smallestVersion||null,frictionVerdict:pd.frictionVerdict||null,
+      })});
+      const data=await r.json();
+      this.set({launchData:data,launchLoading:false});
+    }catch(e){
+      this.set({launchLoading:false});
+      this.toast('Could not generate copy — try again');
+    }
+  },
+
+  async regenerateBroadcast(){
+    const at=this.activeTheme();
+    const pd=this.s.pressureData||{};
+    if(!at.name)return;
+    this.set(s=>({launchData:s.launchData?{...s.launchData,broadcast:null,broadcastChars:0}:null,launchLoading:true}));
+    try{
+      const r=await fetch('/api/build/launch',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        themeName:at.name,themeBlurb:at.blurb,
+        forWho:pd.forWho||null,smallestVersion:pd.smallestVersion||null,frictionVerdict:pd.frictionVerdict||null,
+      })});
+      const data=await r.json();
+      this.set(s=>({launchData:{...s.launchData,...data},launchLoading:false}));
+    }catch(e){
+      this.set({launchLoading:false});
+      this.toast('Could not regenerate — try again');
+    }
+  },
+
+  async copyText(text,label){
+    try{ await navigator.clipboard.writeText(text); }catch(e){}
+    this.toast(`${label} copied`);
+  },
+
   async manageBilling(){
     try{
       const r=await fetch('/api/stripe/portal',{method:'POST',credentials:'include'});
@@ -321,7 +364,9 @@ const A={
       activeThemeId:null,pressureData:null,pressureLoading:false,
       killConfirm:false,cameraFailed:false,toast:null,
       themesLoading:false,themesMessage:null,
-      buildStarted:false,buildTargetLabel:'',captures:[],themes:[],heldBriefs:this.s.heldBriefs||[]};
+      buildStarted:false,buildTargetLabel:'',
+      launchData:null,launchLoading:false,
+      captures:[],themes:[],heldBriefs:this.s.heldBriefs||[]};
     this.render();
   },
 
@@ -640,11 +685,11 @@ const A={
         <span style="display:block;font-size:11px;color:var(--ink-mid);margin-top:3px">Save the brief. Come back to it.</span>
       </button>
       ${this.s.killConfirm
-        ?`<div style="border:1px solid #c0392b;padding:15px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px">
-          <span style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#c0392b">Delete idea + all captures?</span>
+        ?`<div style="border:1px solid var(--danger);padding:15px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <span style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--danger)">Delete idea + all captures?</span>
           <div style="display:flex;gap:10px;flex-shrink:0">
             <button onclick="A.set({killConfirm:false})" style="border:1px solid var(--border);background:transparent;color:var(--ink-light);font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;padding:8px 12px">Cancel</button>
-            <button onclick="A.killTheme()" style="border:none;background:#c0392b;color:#fff;font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;padding:8px 12px">Kill it</button>
+            <button onclick="A.killTheme()" style="border:none;background:var(--danger);color:var(--danger-text);font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;padding:8px 12px">Kill it</button>
           </div>
         </div>`
         :`<button onclick="A.set({killConfirm:true})" style="text-align:left;border:1px solid var(--border);background:transparent;color:var(--ink-light);padding:15px 16px;width:100%">
@@ -768,9 +813,73 @@ const A={
       </div>
     </div>
     <div style="margin-top:24px;display:flex;flex-direction:column;gap:10px">
-      <button onclick="A.copyBrief('claude')" style="width:100%;border:none;background:var(--accent);color:var(--paper);font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;padding:16px;display:flex;align-items:center;justify-content:center;gap:9px">Hand to Claude Code <span style="font-family:var(--font-sans)">→</span></button>
-      <button onclick="A.copyBrief('stack')" style="width:100%;border:1px solid var(--accent);background:transparent;color:var(--accent);font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;padding:15px;display:flex;align-items:center;justify-content:center;gap:9px">Scaffold on Ingenious Stack <span style="font-family:var(--font-sans)">→</span></button>
+      <button onclick="A.generateLaunch()" style="width:100%;border:none;background:var(--accent);color:var(--paper);font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;padding:16px;display:flex;align-items:center;justify-content:center;gap:9px">Write the launch <span style="font-family:var(--font-sans)">→</span></button>
+      <div style="display:flex;align-items:center;gap:10px;padding:4px 0">
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <div style="font-family:var(--font-mono);font-size:8px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-light)">or build it</div>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+      <button onclick="A.copyBrief('claude')" style="width:100%;border:1px solid var(--border);background:transparent;color:var(--ink);font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;padding:15px;display:flex;align-items:center;justify-content:center;gap:9px">Hand to Claude Code <span style="font-family:var(--font-sans)">→</span></button>
+      <button onclick="A.copyBrief('stack')" style="width:100%;border:1px solid var(--border);background:transparent;color:var(--ink);font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;padding:15px;display:flex;align-items:center;justify-content:center;gap:9px">Scaffold on Ingenious Stack <span style="font-family:var(--font-sans)">→</span></button>
     </div>
+  </div>
+</div>`;
+  },
+
+  screenLaunch(){
+    const at=this.activeTheme();
+    const ld=this.s.launchData;
+    const loading=this.s.launchLoading;
+    const bc=ld?ld.broadcastChars||0:0;
+    const bcColor=bc<=140?'var(--code-val)':bc<=155?'#E8A87C':'#c0392b';
+    const bcBorder=bc<=140?'rgba(140,184,138,.35)':bc<=155?'rgba(232,168,124,.5)':'rgba(192,57,43,.5)';
+
+    const copyBlock=(label,text,copyTarget)=>`
+<div style="padding:16px 0;border-top:1px solid var(--border)">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+    <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent)">${label}</div>
+    <button onclick="A.copyText('${(text||'').replace(/'/g,"\\'").replace(/\n/g,' ')}','${label}')" style="border:none;background:none;font-family:var(--font-mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-light);padding:0">Copy ↗</button>
+  </div>
+  <div style="font-size:14px;line-height:1.6;color:var(--ink)">${text||''}</div>
+</div>`;
+
+    const loadingBlock=`<div style="display:flex;align-items:center;justify-content:center;padding:60px 0">
+  <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:var(--accent);animation:blink 1.4s ease-in-out infinite">Writing the launch…</div>
+</div>`;
+
+    const content=loading?loadingBlock:`<div style="display:flex;flex-direction:column">
+  ${copyBlock('One-liner',ld?ld.oneLiner:'')}
+  ${copyBlock('Headline',ld?ld.headline:'')}
+  ${copyBlock('Launch note',ld?ld.launchNote:'')}
+  <div style="padding:16px 0;border-top:1px solid var(--border)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:#E8A87C">Broadwave broadcast</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-family:var(--font-mono);font-size:9px;color:${bcColor}">${bc} / 155</span>
+        <button onclick="A.regenerateBroadcast()" style="border:none;background:none;font-family:var(--font-mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-light);padding:0">↻ Regen</button>
+      </div>
+    </div>
+    <div style="border:1px solid ${bcBorder};padding:14px;background:rgba(232,168,124,.04)">
+      <div style="font-family:var(--font-mono);font-size:12px;line-height:1.7;color:var(--ink);letter-spacing:0.02em">${ld?ld.broadcast:''}</div>
+    </div>
+    <div style="height:3px;background:var(--bg-dark);margin-top:6px;overflow:hidden">
+      <div style="height:100%;width:${Math.min(100,Math.round(bc/155*100))}%;background:${bcColor};transition:width .3s,background .3s"></div>
+    </div>
+    <button onclick="A.copyText('${ld?(ld.broadcast||'').replace(/'/g,"\\'"):''}','Broadwave broadcast')" style="width:100%;margin-top:14px;border:1px solid rgba(232,168,124,.5);background:transparent;color:#E8A87C;font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;padding:14px;display:flex;align-items:center;justify-content:center;gap:8px">Copy to Broadwave <span style="font-family:var(--font-sans)">↗</span></button>
+    <div style="font-family:var(--font-mono);font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-light);text-align:center;margin-top:8px;opacity:.6">Direct handoff coming — paste into Broadwave for now</div>
+  </div>
+</div>`;
+
+    return`<div style="height:100%;display:flex;flex-direction:column;background:var(--bg);animation:screenIn .4s ease both">
+  <div style="padding:54px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+    <button onclick="A.set({screen:'brief'})" style="border:none;background:none;font-family:var(--font-mono);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-light);padding:0">←</button>
+    <div style="display:flex;align-items:baseline;gap:7px">${this.phaseHTML('Build',false)}</div>
+    <div style="width:18px"></div>
+  </div>
+  <div style="flex:1;overflow:auto;padding:20px 28px 36px">
+    <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-light)">Launch copy</div>
+    <div style="font-family:var(--font-display);font-size:26px;line-height:1.08;color:var(--ink);margin:6px 0 20px">${at.name}<span style="color:var(--accent)">.</span></div>
+    ${content}
   </div>
 </div>`;
   },
@@ -813,6 +922,7 @@ const A={
     else if(screen==='graduation') html=this.screenGraduation();
     else if(screen==='pressure') html=this.screenPressure();
     else if(screen==='brief') html=this.screenBrief();
+    else if(screen==='launch') html=this.screenLaunch();
     root.innerHTML=html;
     this._attachEvents();
   },

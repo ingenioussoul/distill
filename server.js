@@ -456,6 +456,58 @@ Return ONLY valid JSON:
   }
 });
 
+// ── Launch copy — AI-generated from brief ────────────────────────────────────
+app.post('/api/build/launch', requireSub, async (req, res) => {
+  try {
+    const session = await auth.api.getSession({ headers: req.headers });
+    if (!session) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { themeName, themeBlurb, forWho, smallestVersion, frictionVerdict } = req.body;
+    if (!themeName) return res.status(400).json({ error: 'Missing theme data' });
+
+    if (!checkAILimit(session.user.id)) {
+      return res.status(429).json({ error: 'Daily AI limit reached — come back tomorrow.' });
+    }
+
+    const client = new Anthropic();
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 768,
+      messages: [{
+        role: 'user',
+        content: `You are writing launch copy for a solo builder's product. Everything below came from their own friction observations — real pattern, real audience, real smallest version. Write in their voice: confident, plain, no hype, no buzzwords.
+
+Product: "${themeName}"
+The friction: ${themeBlurb}
+Who it's for: ${forWho || 'Solo builders'}
+Smallest version: ${smallestVersion || 'The single cut that removes the friction'}
+Why the friction is real: ${frictionVerdict || ''}
+
+Write four pieces of copy. Return ONLY valid JSON:
+{
+  "oneLiner": "One sentence. What it does and who it's for. Under 20 words. Plain, direct.",
+  "headline": "Product page headline. 8-12 words. Serif energy — one italic word would carry the weight. No punctuation at end.",
+  "launchNote": "2-3 sentence launch announcement. Sounds like the builder, not a press release. Why they built it, who it's for, what to do next.",
+  "broadcast": "SMS broadcast for Broadwave. HARD LIMIT: 140-155 characters including spaces. Tight, intentional, written to the constraint from the start — not trimmed. Return the character count as broadcastChars (integer).",
+  "broadcastChars": 0
+}`,
+      }],
+    });
+
+    const text = message.content[0].text.trim();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return res.status(500).json({ error: 'Could not generate copy' });
+
+    const copy = JSON.parse(jsonMatch[0]);
+    // Always compute char count server-side — don't trust the model
+    copy.broadcastChars = (copy.broadcast || '').length;
+    res.json(copy);
+  } catch (err) {
+    console.error('POST /api/build/launch', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Static + pages
 app.use(express.static(path.join(__dirname)));
 
