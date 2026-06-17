@@ -20,6 +20,7 @@ a{text-decoration:none}
   --font-display:'DM Serif Display',Georgia,serif;
   --font-sans:'DM Sans',sans-serif;
   --font-mono:'DM Mono',monospace;
+  --bw:1.5px;
 }
 
 body{background:var(--bg);color:var(--ink);font-family:var(--font-sans);font-weight:300;overflow-x:hidden}
@@ -45,7 +46,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font-sans);font-wei
 nav{
   position:sticky;top:0;z-index:40;
   background:rgba(245,240,232,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  border-bottom:1px solid var(--border);
+  border-bottom:var(--bw) solid var(--border);
 }
 .nav-inner{
   max-width:1240px;margin:0 auto;
@@ -62,6 +63,21 @@ nav{
   color:var(--paper);background:var(--accent);padding:10px 16px;white-space:nowrap;
 }
 @media(max-width:640px){.nav-link{display:none}}
+
+/* ── CANONICAL DEVICES ───────────────────────────────────────── */
+.graph-paper-cream{
+  background-image:radial-gradient(#d4c9b4 1.2px,transparent 1.2px);
+  background-size:22px 22px;background-position:-1px -1px;
+}
+.graph-paper-dark{
+  background-image:radial-gradient(rgba(247,244,238,.1) 1.2px,transparent 1.2px);
+  background-size:22px 22px;background-position:-1px -1px;
+}
+.crop-tl,.crop-tr,.crop-bl,.crop-br{position:absolute;width:18px;height:18px;pointer-events:none;z-index:3}
+.crop-tl{top:12px;left:12px;border-top:var(--bw) solid var(--accent);border-left:var(--bw) solid var(--accent)}
+.crop-tr{top:12px;right:12px;border-top:var(--bw) solid var(--accent);border-right:var(--bw) solid var(--accent)}
+.crop-bl{bottom:12px;left:12px;border-bottom:var(--bw) solid var(--accent);border-left:var(--bw) solid var(--accent)}
+.crop-br{bottom:12px;right:12px;border-bottom:var(--bw) solid var(--accent);border-right:var(--bw) solid var(--accent)}
 
 /* ── HERO ────────────────────────────────────────────────────── */
 .hero{position:relative;z-index:2;overflow:hidden}
@@ -93,7 +109,7 @@ nav{
 }
 .hero-cta-secondary{
   font-family:var(--font-mono);font-size:12px;letter-spacing:0.13em;text-transform:uppercase;
-  color:var(--ink);border:1px solid var(--ink);padding:15px 21px;text-align:center;
+  color:var(--ink);border:var(--bw) solid var(--ink);padding:15px 21px;text-align:center;
 }
 .hero-hint{
   display:flex;align-items:center;gap:8px;margin-top:24px;
@@ -164,13 +180,13 @@ nav{
 }
 
 /* ── HOW ─────────────────────────────────────────────────────── */
-#how{border-top:1px solid var(--border);background:var(--bg)}
+#how{border-top:var(--bw) solid var(--border);background:var(--bg);background-image:radial-gradient(#d4c9b4 1.2px,transparent 1.2px);background-size:22px 22px;background-position:-1px -1px;}
 .how-inner{max-width:1240px;margin:0 auto;padding:56px 20px}
 @media(min-width:768px){.how-inner{padding:78px 48px}}
 
-.how-grid{display:flex;flex-direction:column;border:1px solid var(--border)}
+.how-grid{display:flex;flex-direction:column;border:var(--bw) solid var(--border)}
 .how-cell{padding:24px 20px}
-.how-cell+.how-cell{border-top:1px solid var(--border)}
+.how-cell+.how-cell{border-top:var(--bw) solid var(--border)}
 .how-cell-num{font-family:var(--font-mono);font-size:10px;letter-spacing:0.06em;color:var(--accent)}
 .how-cell-title{font-family:var(--font-display);font-size:20px;line-height:1.1;color:var(--ink);margin:12px 0 8px}
 .how-cell-body{font-size:13.5px;line-height:1.6;color:var(--ink-mid)}
@@ -178,16 +194,16 @@ nav{
 @media(min-width:768px){
   .how-grid{flex-direction:row}
   .how-cell{padding:30px 26px;flex:1}
-  .how-cell+.how-cell{border-top:none;border-left:1px solid var(--border)}
+  .how-cell+.how-cell{border-top:none;border-left:var(--bw) solid var(--border)}
 }
 
 /* ── LOOP ─────────────────────────────────────────────────────── */
-#loop{border-top:1px solid var(--border);background:var(--bg-dark)}
+#loop{border-top:var(--bw) solid var(--border);background:var(--bg-dark);background-image:radial-gradient(#d4c9b4 1.2px,transparent 1.2px);background-size:22px 22px;background-position:-1px -1px;}
 .loop-inner{max-width:1240px;margin:0 auto;padding:56px 20px}
 @media(min-width:768px){.loop-inner{padding:78px 48px}}
 
-.loop-grid{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--border);background:var(--bg)}
-.loop-cell{padding:22px 18px;display:flex;flex-direction:column;gap:9px;min-height:160px;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
+.loop-grid{display:grid;grid-template-columns:1fr 1fr;border:var(--bw) solid var(--border);background:var(--bg)}
+.loop-cell{padding:22px 18px;display:flex;flex-direction:column;gap:9px;min-height:160px;border-right:var(--bw) solid var(--border);border-bottom:var(--bw) solid var(--border)}
 .loop-cell:nth-child(2n){border-right:none}
 .loop-cell:nth-child(3),.loop-cell:nth-child(4){border-bottom:none}
 .loop-cell-kicker{font-family:var(--font-mono);font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:var(--accent)}
@@ -198,14 +214,14 @@ nav{
 @media(min-width:768px){
   .loop-grid{grid-template-columns:repeat(4,1fr)}
   .loop-cell{padding:30px 24px;min-height:210px;border-bottom:none}
-  .loop-cell:nth-child(2n){border-right:1px solid var(--border)}
+  .loop-cell:nth-child(2n){border-right:var(--bw) solid var(--border)}
   .loop-cell:nth-child(4){border-right:none}
   .loop-cell-title-plain,.loop-cell-title-accent{font-size:30px}
   .loop-cell-body{font-size:13px}
 }
 
 /* ── CTA ─────────────────────────────────────────────────────── */
-#access{position:relative;background:var(--bg-ink);color:var(--paper);overflow:hidden}
+#access{position:relative;background:var(--bg-ink);color:var(--paper);overflow:hidden;background-image:radial-gradient(rgba(247,244,238,.1) 1.2px,transparent 1.2px);background-size:22px 22px;background-position:-1px -1px;}
 .cta-line{
   position:absolute;left:0;top:54%;width:140%;height:2px;
   background:linear-gradient(90deg,transparent,var(--accent) 25%,var(--accent) 75%,transparent);
@@ -270,7 +286,11 @@ footer{background:var(--bg-ink);border-top:1px solid rgba(247,244,238,.12)}
 </nav>
 
 <!-- ══ HERO ══ -->
-<div class="hero">
+<div class="hero graph-paper-cream">
+  <div aria-hidden="true" class="crop-tl"></div>
+  <div aria-hidden="true" class="crop-tr"></div>
+  <div aria-hidden="true" class="crop-bl"></div>
+  <div aria-hidden="true" class="crop-br"></div>
   <div class="hero-line" aria-hidden="true"></div>
   <div class="hero-inner">
     <div class="hero-grid">
@@ -536,7 +556,7 @@ const M={
   <div style="font-size:12px;line-height:1.6;color:var(--ink-mid);margin-top:12px;max-width:28ch">Distill files it into the pattern. Enough of these and it graduates into a build brief.</div>
   <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px">
     <button id="mini-think" style="text-align:center;font-family:var(--font-mono);font-size:10px;letter-spacing:0.13em;text-transform:uppercase;color:#F7F4EE;background:var(--accent);border:none;padding:13px;display:block;width:100%">See the patterns →</button>
-    <button id="mini-again" style="border:1px solid var(--border);background:transparent;color:var(--ink-mid);font-family:var(--font-mono);font-size:10px;letter-spacing:0.13em;text-transform:uppercase;padding:12px;width:100%">↻ Capture another</button>
+    <button id="mini-again" style="border:var(--bw) solid var(--border);background:transparent;color:var(--ink-mid);font-family:var(--font-mono);font-size:10px;letter-spacing:0.13em;text-transform:uppercase;padding:12px;width:100%">↻ Capture another</button>
   </div>
 </div>`;
   },
@@ -578,21 +598,21 @@ const M={
 
   screenBrief(){
     return`<div style="height:100%;display:flex;flex-direction:column;background:var(--bg);animation:screenIn .4s ease both">
-  <div style="padding:42px 18px 10px;border-bottom:1px solid var(--border)">
+  <div style="padding:42px 18px 10px;border-bottom:var(--bw) solid var(--border)">
     <div style="font-family:var(--font-mono);font-size:8px;letter-spacing:0.22em;text-transform:uppercase;color:var(--ink-light)">Build · candidate → buildable</div>
     <div style="font-family:var(--font-display);font-size:20px;line-height:1.1;color:var(--ink);margin-top:4px">Lost Information<span style="color:var(--accent)">.</span></div>
   </div>
   <div style="flex:1;overflow:auto;padding:14px 18px 20px">
     <div style="display:flex;flex-direction:column">
-      <div style="padding:10px 0;border-top:1px solid var(--border)">
+      <div style="padding:10px 0;border-top:var(--bw) solid var(--border)">
         <div style="font-family:var(--font-mono);font-size:7px;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent)">Who it's for</div>
         <div style="font-size:11px;line-height:1.5;color:var(--ink);margin-top:4px">Small business owners who can't locate receipts at tax time.</div>
       </div>
-      <div style="padding:10px 0;border-top:1px solid var(--border)">
+      <div style="padding:10px 0;border-top:var(--bw) solid var(--border)">
         <div style="font-family:var(--font-mono);font-size:7px;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent)">Smallest version</div>
         <div style="font-size:11px;line-height:1.5;color:var(--ink);margin-top:4px">A receipt inbox that extracts vendor, amount, and date from photos — searchable in seconds.</div>
       </div>
-      <div style="padding:10px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+      <div style="padding:10px 0;border-top:var(--bw) solid var(--border);border-bottom:var(--bw) solid var(--border)">
         <div style="font-family:var(--font-mono);font-size:7px;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent)">The stack</div>
         <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px">
           ${['Express 5','Better Auth','Drizzle · Neon','OCR.space'].map((s,i)=>`<span style="font-family:var(--font-mono);font-size:8px;color:${i===3?'#E8A87C':'var(--ink-light)'};border:1px solid ${i===3?'rgba(232,168,124,0.5)':'var(--border)'};padding:3px 6px">${s}</span>`).join('')}
@@ -601,7 +621,7 @@ const M={
     </div>
     <div style="margin-top:14px;display:flex;flex-direction:column;gap:7px">
       <button style="width:100%;border:none;background:var(--accent);color:var(--paper);font-family:var(--font-mono);font-size:9px;letter-spacing:0.13em;text-transform:uppercase;padding:12px">Hand to Claude Code →</button>
-      <button onclick="M.set({phase:'capture',done:false,mode:'camera'})" style="width:100%;border:1px solid var(--border);background:transparent;color:var(--ink-mid);font-family:var(--font-mono);font-size:9px;letter-spacing:0.13em;text-transform:uppercase;padding:11px">Repeat the loop ↻</button>
+      <button onclick="M.set({phase:'capture',done:false,mode:'camera'})" style="width:100%;border:var(--bw) solid var(--border);background:transparent;color:var(--ink-mid);font-family:var(--font-mono);font-size:9px;letter-spacing:0.13em;text-transform:uppercase;padding:11px">Repeat the loop ↻</button>
     </div>
   </div>
 </div>`;
