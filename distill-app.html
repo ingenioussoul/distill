@@ -77,6 +77,7 @@ const A={
     activeThemeId:null,pressureData:null,pressureLoading:false,killConfirm:false,cameraFailed:false,toast:null,
     buildStarted:false,buildTargetLabel:'',
     launchData:null,launchLoading:false,
+    voiceConvPhase:null,voiceInitial:'',voiceQuestion:'',
     captures:[],themes:[],heldBriefs:[],
   },
   stream:null,videoEl:null,_t:null,_viv:null,
@@ -155,12 +156,52 @@ const A={
     if(this.s.voiceState!=='listening')return;
     const text=(this.s.voiceText||'').trim();
     if(this._recognition){try{this._recognition.stop();}catch(e){}this._recognition=null;}
-    if(text){
-      this.set({draftPhoto:null,draftInsight:text,draftThemeId:null,
-        screen:'captureInsight',captureMode:'camera',voiceState:'idle',voiceText:''});
-    } else {
-      this.set({voiceState:'idle',voiceText:''});
+    if(!text){this.set({voiceState:'idle',voiceText:''});return;}
+
+    if(this.s.voiceConvPhase===null){
+      // Initial capture — ask AI for one sharpening question
+      this.set({voiceState:'idle',voiceText:'',voiceInitial:text,voiceConvPhase:'thinking'});
+      this._askQuestion(text);
+    } else if(this.s.voiceConvPhase==='questioning'){
+      // Answer — distill to insight and auto-save
+      this.set({voiceState:'idle',voiceText:'',voiceConvPhase:'saving'});
+      this._distillInsight(this.s.voiceInitial,this.s.voiceQuestion,text);
     }
+  },
+
+  async _askQuestion(initial){
+    try{
+      const r=await fetch('/api/capture/converse',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({initial})});
+      const d=await r.json();
+      this.set({voiceQuestion:d.question||'What specifically felt broken about that?',voiceConvPhase:'questioning'});
+    }catch(e){
+      // Fallback — go straight to insight screen with initial text
+      this.set({draftPhoto:null,draftInsight:this.s.voiceInitial,draftThemeId:null,
+        screen:'captureInsight',captureMode:'camera',voiceState:'idle',voiceConvPhase:null,voiceInitial:'',voiceQuestion:''});
+    }
+  },
+
+  async _distillInsight(initial,question,answer){
+    try{
+      const r=await fetch('/api/capture/distill',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({initial,question,answer})});
+      const d=await r.json();
+      const insight=d.insight||initial;
+      this.set({draftPhoto:null,draftInsight:insight,draftThemeId:null});
+      await this.save();
+      this.set({screen:'feed',captureMode:'camera',voiceState:'idle',voiceConvPhase:null,voiceInitial:'',voiceQuestion:'',voiceText:''});
+    }catch(e){
+      // Fallback — drop to insight screen with the initial text
+      this.set({draftPhoto:null,draftInsight:initial,draftThemeId:null,
+        screen:'captureInsight',captureMode:'camera',voiceState:'idle',voiceConvPhase:null,voiceInitial:'',voiceQuestion:''});
+    }
+  },
+
+  submitTextAnswer(){
+    const inp=document.getElementById('voice-text-answer');
+    const text=(inp?inp.value:'').trim();
+    if(!text)return;
+    this.set({voiceConvPhase:'saving'});
+    this._distillInsight(this.s.voiceInitial,this.s.voiceQuestion,text);
   },
 
   save(){
@@ -366,6 +407,7 @@ const A={
       themesLoading:false,themesMessage:null,
       buildStarted:false,buildTargetLabel:'',
       launchData:null,launchLoading:false,
+      voiceConvPhase:null,voiceInitial:'',voiceQuestion:'',
       captures:[],themes:[],heldBriefs:this.s.heldBriefs||[]};
     this.render();
   },
@@ -505,7 +547,8 @@ const A={
   </div>
 </div>`;
     }
-    // Voice mode
+    // Voice mode — phases: null (initial) | thinking | questioning | saving
+    const vcp=this.s.voiceConvPhase;
     const listening=this.s.voiceState==='listening';
     const bars=Array.from({length:15}).map((_,i)=>{
       const dur=(0.6+(i%5)*0.12).toFixed(2)+'s';
@@ -514,9 +557,66 @@ const A={
       const play=listening?'running':'paused';
       return`<span style="width:4px;height:44px;background:${color};transform:scaleY(.22);transform-origin:center;animation:wave ${dur} ease-in-out infinite;animation-delay:${delay};animation-play-state:${play}"></span>`;
     }).join('');
+
+    if(vcp==='thinking'){
+      return`<div style="height:100%;display:flex;flex-direction:column;background:var(--bg-ink);animation:screenIn .35s ease both">
+  <div style="padding:54px 22px 12px;display:flex;align-items:center;justify-content:space-between;background:var(--bg)">
+    <div style="width:18px"></div>
+    <div style="display:flex;align-items:baseline;gap:7px">${this.phaseHTML('See',true)}</div>
+    <div style="width:18px"></div>
+  </div>
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:34px;gap:20px;animation:voiceIn .42s cubic-bezier(.2,.7,.2,1) both">
+    <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:var(--accent);animation:blink 1.4s ease-in-out infinite">Distill is thinking…</div>
+    <div style="font-family:var(--font-display);font-size:18px;line-height:1.4;color:rgba(247,244,238,.55);text-align:center;max-width:28ch">"${this.s.voiceInitial}"</div>
+  </div>
+</div>`;
+    }
+
+    if(vcp==='questioning'){
+      return`<div style="height:100%;display:flex;flex-direction:column;background:var(--bg-ink);animation:screenIn .35s ease both">
+  <div style="padding:54px 22px 12px;display:flex;align-items:center;justify-content:space-between;background:var(--bg)">
+    <button onclick="A.set({captureMode:'camera',voiceState:'idle',voiceConvPhase:null,voiceInitial:'',voiceQuestion:'',voiceText:''})" style="border:none;background:none;font-family:var(--font-sans);font-size:22px;line-height:1;color:var(--ink);padding:0">×</button>
+    <div style="display:flex;align-items:baseline;gap:7px">${this.phaseHTML('See',true)}</div>
+    <div style="width:18px"></div>
+  </div>
+  <div id="voice-gesture-area" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 34px 36px;background:var(--bg-ink);animation:voiceIn .42s cubic-bezier(.2,.7,.2,1) both">
+    <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:var(--accent);margin-bottom:18px">One question</div>
+    <div style="font-family:var(--font-display);font-size:22px;line-height:1.35;color:var(--paper);text-align:center;max-width:30ch;margin-bottom:32px;animation:drawUp .5s ease both">${this.s.voiceQuestion}</div>
+    <div style="height:60px;display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:24px">${bars}</div>
+    <button id="voice-hold-btn" style="width:114px;height:114px;border-radius:50%;border:2px solid ${listening?'var(--accent)':'rgba(247,244,238,.4)'};background:${listening?'var(--accent)':'transparent'};display:flex;align-items:center;justify-content:center;transition:background .2s,border-color .2s;animation:${listening?'holdPulse 1.4s ease-out infinite':'none'};-webkit-user-select:none;user-select:none;touch-action:none">
+      <div style="width:20px;height:20px;border-radius:${listening?'3px':'50%'};background:${listening?'var(--paper)':'rgba(247,244,238,.55)'};transition:all .2s"></div>
+    </button>
+    <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:${listening?'var(--accent)':'rgba(247,244,238,.55)'};margin-top:18px">${listening?'Listening — release to save':'Hold to answer'}</div>
+    ${listening?'':
+    `<div style="width:100%;margin-top:28px;border-top:1px solid rgba(247,244,238,.1);padding-top:20px;display:flex;flex-direction:column;gap:10px">
+      <div style="font-family:var(--font-mono);font-size:8px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(247,244,238,.3);text-align:center">or type your answer</div>
+      <div style="display:flex;border:1px solid rgba(247,244,238,.2)">
+        <input id="voice-text-answer" placeholder="Type your answer…" style="flex:1;border:none;background:transparent;color:var(--paper);font-family:var(--font-sans);font-size:14px;font-weight:300;padding:12px 14px;outline:none">
+        <button onclick="A.submitTextAnswer()" style="border:none;border-left:1px solid rgba(247,244,238,.2);background:transparent;color:var(--accent);font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;padding:0 14px;white-space:nowrap">Save →</button>
+      </div>
+    </div>`}
+  </div>
+</div>`;
+    }
+
+    if(vcp==='saving'){
+      return`<div style="height:100%;display:flex;flex-direction:column;background:var(--bg-ink);animation:screenIn .35s ease both">
+  <div style="padding:54px 22px 12px;display:flex;align-items:center;justify-content:space-between;background:var(--bg)">
+    <div style="width:18px"></div>
+    <div style="display:flex;align-items:baseline;gap:7px">${this.phaseHTML('See',true)}</div>
+    <div style="width:18px"></div>
+  </div>
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:34px;gap:16px">
+    <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:var(--accent);animation:blink 1.4s ease-in-out infinite">Distilling…</div>
+    <div style="font-size:13px;line-height:1.7;color:rgba(247,244,238,.4);text-align:center;max-width:26ch">Sharpening the signal and adding it to your feed.</div>
+  </div>
+</div>`;
+    }
+
+    // Initial hold-to-speak
     return`<div style="height:100%;display:flex;flex-direction:column;background:var(--bg-ink);animation:screenIn .35s ease both">
   <div style="padding:54px 22px 12px;display:flex;align-items:center;justify-content:space-between;background:var(--bg)">
-    <button onclick="A.set({screen:'feed',captureMode:'camera',voiceState:'idle'})" style="border:none;background:none;font-family:var(--font-sans);font-size:22px;line-height:1;color:var(--ink);padding:0">×</button>
+    <button onclick="A.set({screen:'feed',captureMode:'camera',voiceState:'idle',voiceConvPhase:null,voiceInitial:'',voiceQuestion:'',voiceText:''})" style="border:none;background:none;font-family:var(--font-sans);font-size:22px;line-height:1;color:var(--ink);padding:0">×</button>
     <div style="display:flex;align-items:baseline;gap:7px">${this.phaseHTML('See',true)}</div>
     <div style="width:18px"></div>
   </div>
@@ -531,7 +631,7 @@ const A={
       <div style="width:20px;height:20px;border-radius:${listening?'3px':'50%'};background:${listening?'var(--paper)':'rgba(247,244,238,.55)'};transition:all .2s"></div>
     </button>
     <div style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:${listening?'var(--accent)':'rgba(247,244,238,.55)'};margin-top:22px">${listening?'Listening — release to keep':'Hold to speak'}</div>
-    <button onclick="A.set({captureMode:'camera',voiceState:'idle',voiceText:''})" style="margin-top:30px;border:none;background:none;font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(247,244,238,.35);padding:8px">← Back to camera</button>
+    <button onclick="A.set({captureMode:'camera',voiceState:'idle',voiceText:'',voiceConvPhase:null})" style="margin-top:30px;border:none;background:none;font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(247,244,238,.35);padding:8px">← Back to camera</button>
   </div>
 </div>`;
   },

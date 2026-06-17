@@ -456,6 +456,83 @@ Return ONLY valid JSON:
   }
 });
 
+// ── Hold to Speak — conversational capture ───────────────────────────────────
+app.post('/api/capture/converse', requireSub, async (req, res) => {
+  try {
+    const session = await auth.api.getSession({ headers: req.headers });
+    if (!session) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { initial } = req.body;
+    if (!initial) return res.status(400).json({ error: 'Missing initial observation' });
+
+    if (!checkAILimit(session.user.id)) {
+      return res.status(429).json({ error: 'Daily AI limit reached — come back tomorrow.' });
+    }
+
+    const client = new Anthropic();
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 128,
+      messages: [{
+        role: 'user',
+        content: `A builder just noticed friction and said: "${initial}"
+
+Ask them exactly ONE short question to sharpen the signal. Dig into the specific friction — don't restate what they said, don't ask for broad context, don't open a conversation. One tight question that makes the observation more buildable.
+
+Return ONLY valid JSON: { "question": "your one question here" }`,
+      }],
+    });
+
+    const text = message.content[0].text.trim();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return res.status(500).json({ error: 'Could not generate question' });
+    res.json(JSON.parse(jsonMatch[0]));
+  } catch (err) {
+    console.error('POST /api/capture/converse', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.post('/api/capture/distill', requireSub, async (req, res) => {
+  try {
+    const session = await auth.api.getSession({ headers: req.headers });
+    if (!session) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { initial, question, answer } = req.body;
+    if (!initial || !answer) return res.status(400).json({ error: 'Missing conversation data' });
+
+    if (!checkAILimit(session.user.id)) {
+      return res.status(429).json({ error: 'Daily AI limit reached — come back tomorrow.' });
+    }
+
+    const client = new Anthropic();
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 128,
+      messages: [{
+        role: 'user',
+        content: `A builder noticed friction:
+"${initial}"
+
+Sharpening question: "${question || ''}"
+Their answer: "${answer}"
+
+Distill this into one capture insight — a single plain sentence that names the specific friction. No fluff, no generic phrases, no solutions. Write it as a sharp observation in the builder's voice.
+
+Return ONLY valid JSON: { "insight": "one sentence" }`,
+      }],
+    });
+
+    const text = message.content[0].text.trim();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return res.status(500).json({ error: 'Could not distill insight' });
+    res.json(JSON.parse(jsonMatch[0]));
+  } catch (err) {
+    console.error('POST /api/capture/distill', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // ── Launch copy — AI-generated from brief ────────────────────────────────────
 app.post('/api/build/launch', requireSub, async (req, res) => {
   try {
